@@ -14,23 +14,27 @@ The template is a clean Next.js 16 starter with TypeScript and Tailwind CSS 4. I
 - [x] ESLint configuration
 - [x] Memory bank documentation
 - [x] Recipe system for common features
+- [x] Luxury salon booking page with FastAPI integration
+  - BookingForm with cascade categoria→servizio, datetime picker, fetch POST to FastAPI
+  - BusinessDashboard with PIN auth (1234), stats, filters, appointment list
+  - Fiduciary Contract (Guard Contract) clause in form and footer
+  - Hero section, services grid, dark footer
+  - Playfair Display + Inter fonts, gold/cream luxury design system
 
 ## Current Structure
 
 | File/Directory | Purpose | Status |
 |----------------|---------|--------|
-| `src/app/page.tsx` | Home page | ✅ Ready |
-| `src/app/layout.tsx` | Root layout | ✅ Ready |
-| `src/app/globals.css` | Global styles | ✅ Ready |
+| `src/app/page.tsx` | Full salon landing page | ✅ Ready |
+| `src/app/layout.tsx` | Root layout (Playfair + Inter fonts) | ✅ Ready |
+| `src/app/globals.css` | Luxury design system (gold/cream) | ✅ Ready |
+| `src/components/BookingForm.tsx` | Booking form → POST /prenota | ✅ Ready |
+| `src/components/BusinessDashboard.tsx` | PIN-protected appointments dashboard | ✅ Ready |
 | `.kilocode/` | AI context & recipes | ✅ Ready |
 
 ## Current Focus
 
-The template is ready. Next steps depend on user requirements:
-
-1. What type of application to build
-2. What features are needed
-3. Design/branding preferences
+Salon booking application is live. Backend must be running at `http://127.0.0.1:8000` with the FastAPI `/prenota` endpoint for the form to submit successfully.
 
 ## Quick Start Guide
 
