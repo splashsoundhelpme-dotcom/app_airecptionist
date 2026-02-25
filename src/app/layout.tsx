@@ -1,23 +1,17 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Inter } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
 const inter = Inter({
-  variable: "--font-inter",
+  variable: "--font-sans",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "Élite Salon & Beauty — Prenota il tuo appuntamento",
+  title: "AdminHub — Gestione Prenotazioni",
   description:
-    "Prenota il tuo appuntamento presso il nostro salone di bellezza di alto livello. Servizi esclusivi per capelli, estetica e benessere.",
+    "Piattaforma admin per parrucchieri, estetiste e ristoranti. Gestisci prenotazioni da email, telefono, SMS e WhatsApp con assistente AI integrato.",
 };
 
 export default function RootLayout({
@@ -27,9 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="it">
-      <body className={`${playfair.variable} ${inter.variable} antialiased`}>
-        {children}
-      </body>
+      <body className={`${inter.variable} antialiased`}>{children}</body>
     </html>
   );
 }
