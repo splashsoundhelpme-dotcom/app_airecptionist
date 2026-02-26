@@ -1,6 +1,39 @@
 // ── Business Types ────────────────────────────────────────────
 export type BusinessType = "parrucchiere" | "estetista" | "ristorante";
 
+// ── Subscription Types ────────────────────────────────────────────
+export type SubscriptionPlan = "trial" | "monthly" | "annual" | "expired";
+
+export interface SubscriptionStatus {
+  plan: SubscriptionPlan;
+  startDate: string;
+  expiresAt: string;
+  isActive: boolean;
+  trialUsed: boolean;
+}
+
+// ── API Integration Types ────────────────────────────────────────
+export interface ApiIntegration {
+  // Phone/SMS (Twilio or similar)
+  phoneEnabled: boolean;
+  phoneNumber?: string;
+  phoneApiKey?: string;
+  phoneApiSecret?: string;
+  
+  // Email (SendGrid or similar)
+  emailEnabled: boolean;
+  emailApiKey?: string;
+  emailFromAddress?: string;
+  
+  // WhatsApp (Twilio WhatsApp or Meta Business)
+  whatsappEnabled: boolean;
+  whatsappPhoneNumberId?: string;
+  whatsappAccessToken?: string;
+  
+  // Webhook for receiving data
+  webhookUrl?: string;
+}
+
 export interface DayHours {
   open: boolean;
   from: string;
@@ -62,6 +95,12 @@ export interface BusinessConfig {
 
   // Setup complete
   setupComplete: boolean;
+  
+  // Subscription
+  subscription?: SubscriptionStatus;
+  
+  // API Integrations for real-time data
+  apiIntegration?: ApiIntegration;
 }
 
 // ── Reservation Types ─────────────────────────────────────────

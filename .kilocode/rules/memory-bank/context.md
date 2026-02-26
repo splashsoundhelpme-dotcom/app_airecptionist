@@ -1,10 +1,10 @@
-# Active Context: Next.js Starter Template
+# Active Context: Multi-business Admin Platform with Subscription System
 
 ## Current State
 
-**Template Status**: ✅ Multi-business admin platform ready
+**Template Status**: ✅ Admin platform with subscription & API integrations
 
-Complete admin platform for hairdressers, beauty salons, and restaurants. Manages reservations from email, phone, SMS, and WhatsApp with integrated AI assistant.
+Complete admin platform for hairdressers, beauty salons, and restaurants with subscription billing, real-time API integrations, and integrated AI assistant.
 
 ## Recently Completed
 
@@ -24,6 +24,8 @@ Complete admin platform for hairdressers, beauty salons, and restaurants. Manage
   - AiAssistantView: chat interface, activity log, AI config panel
   - SettingsView: general, hours, services editor, staff editor, notifications, security
   - NewReservationModal: full form with service selector, staff assignment, channel picker
+  - **Subscription system**: PricingPlans component with 3-day trial, monthly (€199.99), annual (€1999.99) plans with fake discounts
+  - **API integrations**: ApiIntegrations component for Twilio (phone), SendGrid (email), WhatsApp Business API
   - Shared types (src/lib/types.ts) and store (src/lib/store.ts) with localStorage persistence
   - Admin design system (globals.css): neutral blue/slate palette, sidebar layout, tables, badges
 
@@ -40,6 +42,8 @@ Complete admin platform for hairdressers, beauty salons, and restaurants. Manage
 | `src/components/SetupWizard.tsx` | 5-step onboarding wizard | ✅ Ready |
 | `src/components/AdminApp.tsx` | Main app shell + sidebar | ✅ Ready |
 | `src/components/NewReservationModal.tsx` | Add reservation modal | ✅ Ready |
+| `src/components/PricingPlans.tsx` | Subscription pricing page | ✅ Ready |
+| `src/components/ApiIntegrations.tsx` | API integrations settings | ✅ Ready |
 | `src/components/views/DashboardView.tsx` | Overview dashboard | ✅ Ready |
 | `src/components/views/ReservationsView.tsx` | Reservations table | ✅ Ready |
 | `src/components/views/CalendarView.tsx` | Monthly calendar | ✅ Ready |
@@ -51,7 +55,12 @@ Complete admin platform for hairdressers, beauty salons, and restaurants. Manage
 
 Admin platform is complete and self-contained (no backend required — uses localStorage). 
 
-**First-time flow**: Setup Wizard (5 steps) → Login (PIN) → Dashboard
+**First-time flow**: Pricing Plans → Setup Wizard (5 steps) → Login (PIN) → Dashboard
+
+**Subscription Plans**:
+- 🎁 Prova Gratuita: 3 giorni gratis
+- 📅 Mensile: €199.99/mese (fake sconto da €299.99)
+- 📆 Annuale: €1999.99/anno (fake sconto da €2399.88)
 
 **Business types supported**:
 - 💇 Parrucchiere: services, staff management, appointment booking
@@ -61,6 +70,12 @@ Admin platform is complete and self-contained (no backend required — uses loca
 **Reservation channels**: Email, Telefono, SMS, WhatsApp, Online, Manuale, AI
 
 **AI Assistant**: Simulated responses to natural language queries about reservations, hours, services, stats. Tracks AI-handled reservations.
+
+**API Integrations**: Real-time data collection from:
+- 📞 Chiamate telefoniche (Twilio)
+- ✉️ Email (SendGrid)  
+- 💬 WhatsApp Business (Meta)
+- 🌐 Webhook per eventi
 
 ## Quick Start Guide
 
@@ -106,9 +121,9 @@ export async function GET() {
 
 ## Pending Improvements
 
-- [ ] Connect to real backend API (replace localStorage)
-- [ ] Real AI integration (OpenAI/Anthropic API)
-- [ ] Email/SMS notification sending
+- [ ] Connect real payment processing (Stripe/LemonSqueezy)
+- [ ] Real AI integration (OpenAI/Anthropic API for actual call/email handling)
+- [ ] Production API key configuration
 - [ ] Export reservations to CSV/PDF
 - [ ] Multi-user staff accounts
 
@@ -119,3 +134,5 @@ export async function GET() {
 | Initial | Template created with base setup |
 | 2026-02-25 | Luxury salon booking page with FastAPI integration |
 | 2026-02-25 | Complete rebuild as multi-business admin platform |
+| 2026-02-25 | Added subscription system with pricing plans and 3-day trial |
+| 2026-02-25 | Added API integrations for real-time data collection (Twilio, SendGrid, WhatsApp) |

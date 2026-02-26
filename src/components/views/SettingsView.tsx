@@ -9,6 +9,7 @@ import {
   DEFAULT_SERVICES,
   generateId,
 } from "@/lib/store";
+import ApiIntegrations from "@/components/ApiIntegrations";
 
 interface Props {
   config: BusinessConfig;
@@ -16,7 +17,7 @@ interface Props {
   onGoToSetup: () => void;
 }
 
-type SettingsTab = "generale" | "orari" | "servizi" | "staff" | "notifiche" | "sicurezza";
+type SettingsTab = "generale" | "orari" | "servizi" | "staff" | "notifiche" | "sicurezza" | "api";
 
 export default function SettingsView({ config, onSave, onGoToSetup }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("generale");
@@ -46,6 +47,7 @@ export default function SettingsView({ config, onSave, onGoToSetup }: Props) {
       ? [{ id: "staff" as SettingsTab, label: "Staff", icon: "👥" }]
       : []),
     { id: "notifiche", label: "Notifiche", icon: "🔔" },
+    { id: "api", label: "API & Integrazioni", icon: "🔗" },
     { id: "sicurezza", label: "Sicurezza", icon: "🔒" },
   ];
 
@@ -391,6 +393,17 @@ export default function SettingsView({ config, onSave, onGoToSetup }: Props) {
                 </div>
               ))}
             </div>
+          )}
+
+          {/* ── API & INTEGRAZIONI ─────────────────────────────────── */}
+          {activeTab === "api" && (
+            <ApiIntegrations 
+              config={localConfig} 
+              onSave={(updatedConfig) => {
+                setLocalConfig(updatedConfig);
+                handleSave();
+              }}
+            />
           )}
 
           {/* ── SICUREZZA ────────────────────────────────────────── */}

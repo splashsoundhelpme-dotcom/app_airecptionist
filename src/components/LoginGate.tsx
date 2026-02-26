@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getConfig, setAuthenticated, isAuthenticated, saveConfig } from "@/lib/store";
+import { getConfig, setAuthenticated, isAuthenticated, saveConfig, checkSubscriptionStatus } from "@/lib/store";
 import SetupWizard from "./SetupWizard";
 import AdminApp from "./AdminApp";
+import PricingPlans from "./PricingPlans";
 
-type View = "loading" | "login" | "setup" | "app";
+type View = "loading" | "pricing" | "login" | "setup" | "app";
 
 export default function LoginGate() {
   const [view, setView] = useState<View>("loading");
@@ -17,7 +18,12 @@ export default function LoginGate() {
   useEffect(() => {
     const init = () => {
       const config = getConfig();
-      if (!config.setupComplete) {
+      const subStatus = checkSubscriptionStatus(config.subscription);
+      
+      if (!subStatus.isValid && config.subscription?.plan !== "trial") {
+        // Subscription expired or invalid - show pricing
+        setView("pricing");
+      } else if (!config.setupComplete) {
         setView("setup");
       } else if (isAuthenticated()) {
         setView("app");
@@ -27,6 +33,15 @@ export default function LoginGate() {
     };
     init();
   }, []);
+
+  const handlePricingComplete = () => {
+    const config = getConfig();
+    if (!config.setupComplete) {
+      setView("setup");
+    } else {
+      setView("app");
+    }
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +84,11 @@ export default function LoginGate() {
     setView("setup");
   };
 
+  const handleGoToPricing = () => {
+    setAuthenticated(false);
+    setView("pricing");
+  };
+
   if (view === "loading") {
     return (
       <div
@@ -89,12 +109,16 @@ export default function LoginGate() {
     );
   }
 
+  if (view === "pricing") {
+    return <PricingPlans onPlanSelected={handlePricingComplete} />;
+  }
+
   if (view === "setup") {
     return <SetupWizard onComplete={handleSetupComplete} />;
   }
 
   if (view === "app") {
-    return <AdminApp onLogout={handleLogout} onGoToSetup={handleGoToSetup} />;
+    return <AdminApp onLogout={handleLogout} onGoToSetup={handleGoToSetup} onGoToPricing={handleGoToPricing} />;
   }
 
   // Login view

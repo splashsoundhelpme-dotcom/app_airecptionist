@@ -5,6 +5,9 @@ import type {
   AppNotification,
   BusinessType,
   WeekHours,
+  SubscriptionStatus,
+  SubscriptionPlan,
+  ApiIntegration,
 } from "./types";
 
 // ── Default week hours ────────────────────────────────────────
@@ -39,6 +42,12 @@ export const DEFAULT_CONFIG: BusinessConfig = {
   adminPin: "1234",
   adminEmail: "",
   setupComplete: false,
+  subscription: createTrialSubscription(),
+  apiIntegration: {
+    phoneEnabled: false,
+    emailEnabled: false,
+    whatsappEnabled: false,
+  },
 };
 
 // ── Default services per business type ───────────────────────
@@ -362,3 +371,102 @@ export const DAYS_LABELS: Record<string, string> = {
   lunedi: "Lunedì", martedi: "Martedì", mercoledi: "Mercoledì",
   giovedi: "Giovedì", venerdi: "Venerdì", sabato: "Sabato", domenica: "Domenica",
 };
+
+// ── Subscription helpers ──────────────────────────────────────────
+export const SUBSCRIPTION_PLANS: Record<string, { name: string; price: number; interval: string; originalPrice?: number; savings?: number; features: string[] }> = {
+  trial: {
+    name: "Prova Gratuita",
+    price: 0,
+    interval: "3 giorni",
+    features: [
+      "Accesso completo a tutte le funzionalità",
+      "Assistente AI attivo",
+      "Gestione prenotazioni illimitata",
+      "Supporto prioritario",
+    ],
+  },
+  monthly: {
+    name: "Mensile",
+    price: 199.99,
+    interval: "mese",
+    originalPrice: 299.99,
+    savings: 100,
+    features: [
+      "Tutto incluso nel piano trial",
+      "Integrazioni telefoniche e email",
+      "Notifiche in tempo reale",
+      "Assistenza 24/7",
+    ],
+  },
+  annual: {
+    name: "Annuale",
+    price: 1999.99,
+    interval: "anno",
+    originalPrice: 2399.88,
+    savings: 400,
+    features: [
+      "Tutto nel piano mensile",
+      "Risparmia €400 rispetto al mensile",
+      "Dominio personalizzato",
+      "API dedicata",
+    ],
+  },
+};
+
+export function createTrialSubscription(): SubscriptionStatus {
+  const now = new Date();
+  const expires = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+  
+  return {
+    plan: "trial",
+    startDate: now.toISOString(),
+    expiresAt: expires.toISOString(),
+    isActive: true,
+    trialUsed: false,
+  };
+}
+
+export function createMonthlySubscription(): SubscriptionStatus {
+  const now = new Date();
+  const expires = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  
+  return {
+    plan: "monthly",
+    startDate: now.toISOString(),
+    expiresAt: expires.toISOString(),
+    isActive: true,
+    trialUsed: true,
+  };
+}
+
+export function createAnnualSubscription(): SubscriptionStatus {
+  const now = new Date();
+  const expires = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+  
+  return {
+    plan: "annual",
+    startDate: now.toISOString(),
+    expiresAt: expires.toISOString(),
+    isActive: true,
+    trialUsed: true,
+  };
+}
+
+export function checkSubscriptionStatus(subscription?: SubscriptionStatus): { isValid: boolean; daysRemaining: number; plan: string } {
+  if (!subscription) {
+    return { isValid: false, daysRemaining: 0, plan: "expired" };
+  }
+  
+  const now = new Date();
+  const expires = new Date(subscription.expiresAt);
+  const diffMs = expires.getTime() - now.getTime();
+  const daysRemaining = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
+  
+  return {
+    isValid: subscription.isActive && daysRemaining > 0,
+    daysRemaining: Math.max(0, daysRemaining),
+    plan: subscription.plan as string,
+  };
+}
+
+// End of file

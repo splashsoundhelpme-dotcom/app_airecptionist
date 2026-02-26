@@ -15,9 +15,10 @@ type NavItem = "dashboard" | "reservations" | "calendar" | "ai" | "settings";
 interface Props {
   onLogout: () => void;
   onGoToSetup: () => void;
+  onGoToPricing?: () => void;
 }
 
-export default function AdminApp({ onLogout, onGoToSetup }: Props) {
+export default function AdminApp({ onLogout, onGoToSetup, onGoToPricing }: Props) {
   const [activeNav, setActiveNav] = useState<NavItem>("dashboard");
   const [config, setConfig] = useState<BusinessConfig | null>(null);
   const [reservations, setReservations] = useState<Reservation[]>([]);
