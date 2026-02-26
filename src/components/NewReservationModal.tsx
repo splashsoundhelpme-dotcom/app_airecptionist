@@ -2,7 +2,54 @@
 
 import { useState } from "react";
 import type { BusinessConfig, Reservation, ReservationChannel } from "@/lib/types";
-import { getReservations, saveReservations, generateId } from "@/lib/store";
+import { getReservations, saveReservations, generateId, formatDateTime } from "@/lib/store";
+
+interface Props {
+  config: BusinessConfig;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+// Function to send email notification
+async function sendReservationEmail(reservation: Reservation, config: BusinessConfig) {
+  if (!config.email) return;
+  
+  const { date, time } = formatDateTime(reservation.dateTime);
+  
+  const emailBody = `
+    <h2>🔔 Nuova Prenotazione!</h2>
+    <p><strong>Cliente:</strong> ${reservation.clientName}</p>
+    <p><strong>Servizio:</strong> ${reservation.service}</p>
+    <p><strong>Data:</strong> ${date} alle ${time}</p>
+    ${reservation.clientPhone ? `<p><strong>Telefono:</strong> ${reservation.clientPhone}</p>` : ''}
+    ${reservation.clientEmail ? `<p><strong>Email:</strong> ${reservation.clientEmail}</p>` : ''}
+    ${reservation.covers ? `<p><strong>Coperti:</strong> ${reservation.covers}</p>` : ''}
+    ${reservation.notes ? `<p><strong>Note:</strong> ${reservation.notes}</p>` : ''}
+    <p><strong>Canale:</strong> ${reservation.channel}</p>
+    <hr>
+    <p style="color: #666; font-size: 12px;
+  }">Inviato da AdminHub - Pannello di Gestione</p>
+  `;
+
+  try {
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: config.email,
+        subject: `📅 Nuova Prenotazione: ${reservation.clientName} - ${reservation.service}`,
+        body: emailBody,
+        type: 'new_reservation'
+      })
+    });
+    
+    if (response.ok) {
+      console.log('Email notification sent successfully');
+    }
+  } catch (error) {
+    console.error('Failed to send email:', error);
+  }
+}
 
 interface Props {
   config: BusinessConfig;
@@ -66,6 +113,12 @@ export default function NewReservationModal({ config, onClose, onSaved }: Props)
 
     const all = getReservations();
     saveReservations([...all, reservation]);
+    
+    // Send email notification to business owner
+    if (config.notifyEmail) {
+      sendReservationEmail(reservation, config);
+    }
+    
     onSaved();
   };
 
