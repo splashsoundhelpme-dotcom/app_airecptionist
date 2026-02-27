@@ -12,18 +12,46 @@ export interface SubscriptionStatus {
   trialUsed: boolean;
 }
 
+// ── Voice/Audio Types ─────────────────────────────────────────
+export type VoiceTone = 
+  | "professionale" 
+  | "amichevole" 
+  | "elegante" 
+  | "giovane" 
+  | "caldo" 
+  | "energetico";
+
+export interface VoiceConfig {
+  enabled: boolean;
+  tone: VoiceTone;
+  welcomeMessage: string;
+  language: string;
+}
+
 // ── API Integration Types ────────────────────────────────────────
 export interface ApiIntegration {
-  // Phone/SMS (Twilio or similar)
+  // Owner API Keys (managed centrally)
+  ownerApiKeysConfigured: boolean;
+  
+  // Phone/SMS (Twilio + 11Labs for voice)
   phoneEnabled: boolean;
   phoneNumber?: string;
   phoneApiKey?: string;
   phoneApiSecret?: string;
   
-  // Email (SendGrid or similar)
+  // Voice AI (11Labs)
+  voiceEnabled: boolean;
+  voiceTone?: VoiceTone;
+  welcomeMessage?: string;
+  voiceLanguage?: string;
+  
+  // Email (SendGrid)
   emailEnabled: boolean;
   emailApiKey?: string;
   emailFromAddress?: string;
+  notifyOnNewReservation: boolean;
+  notifyOnCancellation: boolean;
+  notifyOnModification: boolean;
   
   // WhatsApp (Twilio WhatsApp or Meta Business)
   whatsappEnabled: boolean;
@@ -32,6 +60,9 @@ export interface ApiIntegration {
   
   // Webhook for receiving data
   webhookUrl?: string;
+  
+  // AI Model
+  aiModel: "gemini" | "openai";
 }
 
 export interface DayHours {

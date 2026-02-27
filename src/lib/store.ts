@@ -44,9 +44,15 @@ export const DEFAULT_CONFIG: BusinessConfig = {
   setupComplete: false,
   subscription: createTrialSubscription(),
   apiIntegration: {
+    ownerApiKeysConfigured: false,
     phoneEnabled: false,
     emailEnabled: false,
     whatsappEnabled: false,
+    voiceEnabled: false,
+    notifyOnNewReservation: true,
+    notifyOnCancellation: true,
+    notifyOnModification: true,
+    aiModel: "gemini",
   },
 };
 
