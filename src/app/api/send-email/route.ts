@@ -1,18 +1,28 @@
-import { NextResponse } from "next/server";
+/**
+ * POST /api/send-email
+ *
+ * Sends transactional emails via SendGrid.
+ * Falls back to console logging in development when SENDGRID_API_KEY is not set.
+ */
 
-// This is a demo email service - in production, integrate with SendGrid, Resend, etc.
-// For now, we'll simulate email sending and log the emails
+import { NextRequest, NextResponse } from "next/server";
+import { getBusinessId } from "@/lib/multi-tenant";
 
 interface EmailRequest {
   to: string;
+  toName?: string;
   subject: string;
-  body: string;
-  type: "new_reservation" | "reservation_confirmed" | "reservation_cancelled" | "reminder";
+  body: string; // HTML
+  replyTo?: string;
+  type: "new_reservation" | "reservation_confirmed" | "reservation_cancelled" | "reminder" | "no_show_penalty";
+  // Multi-tenant
+  business_id?: string;
 }
 
-export async function POST(request: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const { to, subject, body, type }: EmailRequest = await request.json();
+    const { to, toName, subject, body, replyTo, type, business_id }: EmailRequest =
+      await req.json();
 
     if (!to || !subject || !body) {
       return NextResponse.json(
@@ -21,57 +31,113 @@ export async function POST(request: Request) {
       );
     }
 
-    // In production, integrate with a real email service:
-    // 
-    // Example with SendGrid:
-    // const sgMail = require('@sendgrid/mail');
-    // sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    // await sgMail.send({ to, subject, html: body, from: 'noreply@yourdomain.com' });
-    //
-    // Example with Resend:
-    // const { Resend } = require('resend');
-    // const resend = new Resend(process.env.RESEND_API_KEY);
-    // await resend.emails.send({ to, subject, html: body, from: 'noreply@yourdomain.com' });
+    const businessId = business_id ?? getBusinessId(req);
+    const apiKey = process.env.SENDGRID_API_KEY;
+    const fromEmail = process.env.SENDGRID_FROM_EMAIL ?? "noreply@ai-booking.app";
+    const fromName = process.env.SENDGRID_FROM_NAME ?? "AI Booking Assistant";
 
-    // For demo, we'll log the email and return success
-    console.log("=== EMAIL SENT ===");
-    console.log(`To: ${to}`);
-    console.log(`Subject: ${subject}`);
-    console.log(`Type: ${type}`);
-    console.log(`Body: ${body}`);
-    console.log("==================");
+    // ── Development / unconfigured: simulate ──────────────────────────────────
+    if (!apiKey || apiKey.startsWith("your_")) {
+      console.log("=== EMAIL (simulated — SendGrid not configured) ===");
+      console.log(`Business: ${businessId}`);
+      console.log(`To: ${to}${toName ? ` <${toName}>` : ""}`);
+      console.log(`Subject: ${subject}`);
+      console.log(`Type: ${type}`);
+      console.log(`Body (truncated): ${body.slice(0, 200)}...`);
+      console.log("===================================================");
 
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      return NextResponse.json({
+        success: true,
+        simulated: true,
+        message: "SendGrid not configured — email simulated",
+        emailId: `sim_${Date.now()}`,
+        type,
+        to,
+        subject,
+        businessId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // ── Production: send via SendGrid ─────────────────────────────────────────
+    const sgPayload = {
+      personalizations: [
+        {
+          to: [{ email: to, ...(toName ? { name: toName } : {}) }],
+        },
+      ],
+      from: { email: fromEmail, name: fromName },
+      ...(replyTo ? { reply_to: { email: replyTo } } : {}),
+      subject,
+      content: [{ type: "text/html", value: body }],
+      // Custom args for tracking
+      custom_args: {
+        business_id: businessId,
+        email_type: type,
+      },
+    };
+
+    const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(sgPayload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[send-email] SendGrid error:", response.status, errorText);
+      return NextResponse.json(
+        { error: "SendGrid API error", detail: errorText },
+        { status: response.status }
+      );
+    }
+
+    // SendGrid returns 202 with no body on success
+    const messageId = response.headers.get("x-message-id") ?? `sg_${Date.now()}`;
 
     return NextResponse.json({
       success: true,
-      message: "Email sent successfully",
-      emailId: `email_${Date.now()}`,
+      emailId: messageId,
       type,
       to,
       subject,
+      businessId,
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
-    console.error("Email sending error:", error);
+  } catch (err) {
+    console.error("[send-email] Error:", err);
     return NextResponse.json(
-      { error: "Failed to send email" },
+      { error: "Failed to send email", detail: String(err) },
       { status: 500 }
     );
   }
 }
 
-// Handle GET requests for testing
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const businessId = getBusinessId(req);
+  const configured =
+    !!process.env.SENDGRID_API_KEY &&
+    !process.env.SENDGRID_API_KEY.startsWith("your_");
+
   return NextResponse.json({
     status: "Email API is running",
+    businessId,
+    configured,
+    provider: "SendGrid",
     methods: ["POST"],
     usage: {
       to: "email@example.com",
+      toName: "Mario Rossi (optional)",
       subject: "Email Subject",
       body: "HTML email body",
-      type: "new_reservation | reservation_confirmed | reservation_cancelled | reminder"
-    }
+      replyTo: "reply@example.com (optional)",
+      type: "new_reservation | reservation_confirmed | reservation_cancelled | reminder | no_show_penalty",
+      business_id: "twilight-lake-0344 (optional)",
+    },
   });
 }

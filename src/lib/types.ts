@@ -1,3 +1,35 @@
+// ── Multi-tenant Types ────────────────────────────────────────
+export interface TenantContext {
+  businessId: string;
+  mandateVersion: "1.0";
+  issuedAt: string;
+}
+
+// ── Guard Contract Types ──────────────────────────────────────
+export type ClientRiskLevel = "ok" | "at_risk" | "blocked";
+
+export interface GuardContractRecord {
+  clientPhone: string;
+  clientEmail?: string;
+  businessId: string;
+  noShowCount: number;
+  riskLevel: ClientRiskLevel;
+  totalPenaltyEur: number;
+  lastNoShowAt?: string;
+  blockedAt?: string;
+}
+
+export interface NoShowPenalty {
+  reservationId: string;
+  clientName: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  penaltyAmountEur: number;
+  appliedAt: string;
+  notificationSent: boolean;
+  riskLevel: ClientRiskLevel;
+}
+
 // ── Business Types ────────────────────────────────────────────
 export type BusinessType = "parrucchiere" | "estetista" | "ristorante";
 

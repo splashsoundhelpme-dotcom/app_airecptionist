@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import type { BusinessConfig, Reservation } from "@/lib/types";
 import {
   formatDateTime,
@@ -7,6 +8,8 @@ import {
   CHANNEL_LABELS,
   BUSINESS_LABELS,
 } from "@/lib/store";
+import { startPolling } from "@/lib/realtime";
+import type { RealtimeStats } from "@/lib/realtime";
 
 interface Props {
   config: BusinessConfig;
@@ -24,7 +27,31 @@ export default function DashboardView({ config, reservations, onNewReservation, 
   );
   const pending = reservations.filter((r) => r.status === "in_attesa");
   const confirmed = reservations.filter((r) => r.status === "confermata");
-  const aiHandled = reservations.filter((r) => r.aiHandled);
+  const aiHandledLocal = reservations.filter((r) => r.aiHandled);
+
+  // ── Real-time AI counter ──────────────────────────────────────────────────
+  const [realtimeStats, setRealtimeStats] = useState<RealtimeStats | null>(null);
+  const [isLive, setIsLive] = useState(false);
+  const stopPollingRef = useRef<(() => void) | null>(null);
+
+  const businessId =
+    process.env.NEXT_PUBLIC_DEFAULT_BUSINESS_ID ?? "twilight-lake-0344";
+
+  useEffect(() => {
+    // Start polling /api/stats for live AI counter
+    const stop = startPolling(businessId, (stats) => {
+      setRealtimeStats(stats);
+      setIsLive(true);
+    });
+    stopPollingRef.current = stop;
+
+    return () => {
+      stop();
+    };
+  }, [businessId]);
+
+  // Use server-side count if available, otherwise fall back to localStorage count
+  const aiHandledCount = realtimeStats?.aiHandledCount ?? aiHandledLocal.length;
 
   // Upcoming (next 7 days)
   const upcoming = reservations
@@ -78,22 +105,52 @@ export default function DashboardView({ config, reservations, onNewReservation, 
             {pending.length > 0 && ` · ${pending.length} in attesa di conferma`}
           </p>
         </div>
-        <button
-          className="btn"
-          style={{
-            background: "rgba(255,255,255,0.2)",
-            color: "white",
-            border: "1.5px solid rgba(255,255,255,0.3)",
-            backdropFilter: "blur(4px)",
-          }}
-          onClick={onNewReservation}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Nuova Prenotazione
-        </button>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+          {/* Live indicator */}
+          {isLive && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "4px 10px",
+                borderRadius: 99,
+                background: "rgba(255,255,255,0.15)",
+                border: "1px solid rgba(255,255,255,0.25)",
+                fontSize: 11,
+                color: "white",
+              }}
+            >
+              <span
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: "50%",
+                  background: "#4ade80",
+                  display: "inline-block",
+                  animation: "pulse 2s infinite",
+                }}
+              />
+              LIVE · {businessId}
+            </div>
+          )}
+          <button
+            className="btn"
+            style={{
+              background: "rgba(255,255,255,0.2)",
+              color: "white",
+              border: "1.5px solid rgba(255,255,255,0.3)",
+              backdropFilter: "blur(4px)",
+            }}
+            onClick={onNewReservation}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Nuova Prenotazione
+          </button>
+        </div>
       </div>
 
       {/* Stats grid */}
@@ -128,10 +185,11 @@ export default function DashboardView({ config, reservations, onNewReservation, 
           },
           {
             label: "Gestite da AI",
-            value: aiHandled.length,
+            value: aiHandledCount,
             icon: "🤖",
             color: "#667eea",
             bg: "rgba(102,126,234,0.1)",
+            live: isLive,
           },
           ...(config.businessType === "ristorante"
             ? [
@@ -145,7 +203,22 @@ export default function DashboardView({ config, reservations, onNewReservation, 
               ]
             : []),
         ].map((stat) => (
-          <div key={stat.label} className="stat-card">
+          <div key={stat.label} className="stat-card" style={{ position: "relative" }}>
+            {"live" in stat && stat.live && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: 8,
+                  right: 8,
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  background: "#4ade80",
+                  animation: "pulse 2s infinite",
+                }}
+                title="Aggiornamento in tempo reale"
+              />
+            )}
             <div
               style={{
                 width: 40,
@@ -327,14 +400,26 @@ export default function DashboardView({ config, reservations, onNewReservation, 
                 border: "1px solid rgba(102,126,234,0.15)",
               }}
             >
-              <p style={{ fontSize: 13, fontWeight: 600, color: "#667eea", marginBottom: 4 }}>
-                🤖 Assistente AI
-              </p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "#667eea" }}>
+                  🤖 Assistente AI
+                </p>
+                {isLive && (
+                  <span style={{ fontSize: 10, color: "#4ade80", fontWeight: 600, letterSpacing: "0.05em" }}>
+                    ● LIVE
+                  </span>
+                )}
+              </div>
               <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
                 Ha gestito{" "}
-                <strong style={{ color: "#667eea" }}>{aiHandled.length}</strong> prenotazioni
-                automaticamente ({Math.round((aiHandled.length / Math.max(reservations.length, 1)) * 100)}% del totale)
+                <strong style={{ color: "#667eea" }}>{aiHandledCount}</strong> prenotazioni
+                automaticamente ({Math.round((aiHandledCount / Math.max(reservations.length, 1)) * 100)}% del totale)
               </p>
+              {realtimeStats && (
+                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+                  Ultimo aggiornamento: {new Date(realtimeStats.lastUpdatedAt).toLocaleTimeString("it-IT")}
+                </p>
+              )}
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={() => onNavigate("ai")}
@@ -342,6 +427,37 @@ export default function DashboardView({ config, reservations, onNewReservation, 
               >
                 Vedi attività AI →
               </button>
+            </div>
+          )}
+
+          {/* Integration status */}
+          {realtimeStats && (
+            <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {[
+                { key: "gemini", label: "Gemini", icon: "🧠" },
+                { key: "sendgrid", label: "Email", icon: "✉️" },
+                { key: "whatsapp", label: "WhatsApp", icon: "📱" },
+                { key: "twilio", label: "Twilio", icon: "📞" },
+                { key: "elevenLabs", label: "Voice", icon: "🎙️" },
+              ].map(({ key, label, icon }) => {
+                const active = realtimeStats.integrations[key as keyof typeof realtimeStats.integrations];
+                return (
+                  <span
+                    key={key}
+                    style={{
+                      fontSize: 11,
+                      padding: "2px 8px",
+                      borderRadius: 99,
+                      background: active ? "rgba(34,197,94,0.1)" : "var(--surface-2)",
+                      color: active ? "#16a34a" : "var(--text-muted)",
+                      border: `1px solid ${active ? "rgba(34,197,94,0.3)" : "var(--border)"}`,
+                    }}
+                    title={active ? `${label} configurato` : `${label} non configurato`}
+                  >
+                    {icon} {label}
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>

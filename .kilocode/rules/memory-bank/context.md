@@ -15,6 +15,18 @@ Complete admin platform for hairdressers, beauty salons, and restaurants with su
 - [x] Memory bank documentation
 - [x] Recipe system for common features
 - [x] **Multi-business admin platform** (complete rebuild)
+- [x] **AI Infrastructure & Backend** (2026-02-27)
+  - `.env.local` with all 9 required secret placeholders (GEMINI, ELEVEN_LABS, TWILIO x3, SENDGRID, WHATSAPP x3)
+  - `src/lib/env.ts` — server-side env validation, warns in dev, throws in prod
+  - `src/lib/multi-tenant.ts` — business_id resolution, Fiduciary Mandate, Guard Contract (no-show penalties), in-memory AI stats store
+  - `src/app/api/webhook-voice/route.ts` — ElevenLabs webhook: increments AI counter, sends SendGrid email + WhatsApp confirmation
+  - `src/app/api/send-whatsapp/route.ts` — Meta Business API WhatsApp sender
+  - `src/app/api/send-email/route.ts` — Real SendGrid integration (with dev simulation fallback)
+  - `src/app/api/ai-chat/route.ts` — Gemini 1.5 Flash chat with Fiduciary Mandate system prompt
+  - `src/app/api/stats/route.ts` — Real-time AI stats endpoint (GET/POST)
+  - `src/lib/realtime.ts` — Client polling utility (10s interval) for live dashboard
+  - `src/components/views/DashboardView.tsx` — Live "Gestite da AI" counter + integration status badges
+  - `src/lib/types.ts` — Added TenantContext, GuardContractRecord, NoShowPenalty, ClientRiskLevel types
   - LoginGate: PIN auth with lockout after 5 failed attempts
   - SetupWizard: 5-step onboarding (business type, info, hours, AI config, security)
   - AdminApp: sidebar navigation with 5 views
