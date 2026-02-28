@@ -33,6 +33,11 @@ Complete admin platform for hairdressers, beauty salons, and restaurants with su
 
 | File/Directory | Purpose | Status |
 |----------------|---------|--------|
+| `src/lib/googleSheets.ts` | Google Sheets API client | ✅ Ready |
+| `src/app/api/sheets/reservations/route.ts` | Reservations API (GET/POST) | ✅ Ready |
+| `src/app/api/sheets/config/route.ts` | Config API (GET/POST) | ✅ Ready |
+| `src/app/api/sheets/status/route.ts` | Status API | ✅ Ready |
+|----------------|---------|--------|
 | `src/app/page.tsx` | Entry point → LoginGate | ✅ Ready |
 | `src/app/layout.tsx` | Root layout (Inter font) | ✅ Ready |
 | `src/app/globals.css` | Admin design system | ✅ Ready |
@@ -44,6 +49,7 @@ Complete admin platform for hairdressers, beauty salons, and restaurants with su
 | `src/components/NewReservationModal.tsx` | Add reservation modal | ✅ Ready |
 | `src/components/PricingPlans.tsx` | Subscription pricing page | ✅ Ready |
 | `src/components/ApiIntegrations.tsx` | API integrations settings | ✅ Ready |
+| `src/components/GoogleSheetsDb.tsx` | Google Sheets DB configuration | ✅ Ready |
 | `src/components/views/DashboardView.tsx` | Overview dashboard | ✅ Ready |
 | `src/components/views/ReservationsView.tsx` | Reservations table | ✅ Ready |
 | `src/components/views/CalendarView.tsx` | Monthly calendar | ✅ Ready |
@@ -76,6 +82,11 @@ Admin platform is complete and self-contained (no backend required — uses loca
 - ✉️ Email (SendGrid)  
 - 💬 WhatsApp Business (Meta)
 - 🌐 Webhook per eventi
+
+**Google Sheets Database**: Opzionale - configura un foglio Google Sheets come database per le prenotazioni:
+- 📊 Foglio "Prenotazioni" per i dati delle prenotazioni
+- 📋 Foglio "Configurazione" per le impostazioni
+- 🔐 Service Account richiesto per l'accesso
 
 ## Quick Start Guide
 
@@ -136,3 +147,4 @@ export async function GET() {
 | 2026-02-25 | Complete rebuild as multi-business admin platform |
 | 2026-02-25 | Added subscription system with pricing plans and 3-day trial |
 | 2026-02-25 | Added API integrations for real-time data collection (Twilio, SendGrid, WhatsApp) |
+| 2026-02-28 | Added Google Sheets database integration for reservations and config |

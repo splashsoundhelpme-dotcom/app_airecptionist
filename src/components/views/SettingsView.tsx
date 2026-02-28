@@ -10,6 +10,7 @@ import {
   generateId,
 } from "@/lib/store";
 import ApiIntegrations from "@/components/ApiIntegrations";
+import GoogleSheetsDb from "@/components/GoogleSheetsDb";
 
 interface Props {
   config: BusinessConfig;
@@ -397,13 +398,16 @@ export default function SettingsView({ config, onSave, onGoToSetup }: Props) {
 
           {/* ── API & INTEGRAZIONI ─────────────────────────────────── */}
           {activeTab === "api" && (
-            <ApiIntegrations 
-              config={localConfig} 
-              onSave={(updatedConfig) => {
-                setLocalConfig(updatedConfig);
-                handleSave();
-              }}
-            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              <ApiIntegrations 
+                config={localConfig} 
+                onSave={(updatedConfig) => {
+                  setLocalConfig(updatedConfig);
+                  handleSave();
+                }}
+              />
+              <GoogleSheetsDb />
+            </div>
           )}
 
           {/* ── SICUREZZA ────────────────────────────────────────── */}
