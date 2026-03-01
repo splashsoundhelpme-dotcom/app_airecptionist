@@ -132,7 +132,7 @@ export async function GET() {
 
 ## Pending Improvements
 
-- [ ] Connect real payment processing (Stripe/LemonSqueezy)
+- [x] Fix lint errors in GoogleSheetsDb.tsx (escaped apostrophes)
 - [ ] Real AI integration (OpenAI/Anthropic API for actual call/email handling)
 - [ ] Production API key configuration
 - [ ] Export reservations to CSV/PDF
@@ -142,7 +142,7 @@ export async function GET() {
 
 | Date | Changes |
 |------|---------|
-| Initial | Template created with base setup |
+| 2026-03-01 | Fixed lint errors in GoogleSheetsDb.tsx (escaped apostrophes), committed and pushed |
 | 2026-02-25 | Luxury salon booking page with FastAPI integration |
 | 2026-02-25 | Complete rebuild as multi-business admin platform |
 | 2026-02-25 | Added subscription system with pricing plans and 3-day trial |
