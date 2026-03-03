@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { readSheet, writeSheet, isSheetsConfigured } from "@/lib/googleSheets";
 
 // GET /api/sheets/config - Leggi la configurazione
-export async function GET() {
-  if (!isSheetsConfigured()) {
+export async function GET(request: Request) {
+  const headers = request.headers;
+  
+  if (!isSheetsConfigured(headers)) {
     return NextResponse.json({ 
       error: "Google Sheets non configurato",
       configured: false 
@@ -11,7 +13,7 @@ export async function GET() {
   }
 
   try {
-    const data = await readSheet("Configurazione!A:B");
+    const data = await readSheet("Configurazione!A:B", headers);
     
     if (data.length === 0) {
       return NextResponse.json({ config: null, configured: true });
@@ -34,7 +36,9 @@ export async function GET() {
 
 // POST /api/sheets/config - Salva la configurazione
 export async function POST(request: Request) {
-  if (!isSheetsConfigured()) {
+  const headers = request.headers;
+  
+  if (!isSheetsConfigured(headers)) {
     return NextResponse.json({ 
       error: "Google Sheets non configurato",
       configured: false 
@@ -45,15 +49,15 @@ export async function POST(request: Request) {
     const body = await request.json();
     
     // Crea header
-    const headers = ["chiave", "valore"];
-    const rows = [headers];
+    const headersRow = ["chiave", "valore"];
+    const rows = [headersRow];
 
     // Converti l'oggetto config in righe
     Object.entries(body).forEach(([key, value]) => {
       rows.push([key, typeof value === "string" ? value : JSON.stringify(value)]);
     });
 
-    const success = await writeSheet("Configurazione!A:Z", rows);
+    const success = await writeSheet("Configurazione!A:Z", rows, headers);
     
     if (success) {
       return NextResponse.json({ success: true, configured: true });

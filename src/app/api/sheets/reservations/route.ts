@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { readSheet, writeSheet, appendSheet, isSheetsConfigured, getSheets } from "@/lib/googleSheets";
+import { readSheet, writeSheet, appendSheet, isSheetsConfigured, getSpreadsheetIdFromHeaders } from "@/lib/googleSheets";
 
 // GET /api/sheets/reservations - Leggi tutte le prenotazioni
-export async function GET() {
-  if (!isSheetsConfigured()) {
+export async function GET(request: Request) {
+  const headers = request.headers;
+  
+  if (!isSheetsConfigured(headers)) {
     return NextResponse.json({ 
       error: "Google Sheets non configurato",
       configured: false 
@@ -11,17 +13,17 @@ export async function GET() {
   }
 
   try {
-    const data = await readSheet("Prenotazioni!A:L");
+    const data = await readSheet("Prenotazioni!A:L", headers);
     
     if (data.length === 0) {
       return NextResponse.json({ reservations: [], configured: true });
     }
 
     // La prima riga è l'header
-    const headers = data[0];
+    const headersRow = data[0];
     const reservations = data.slice(1).map((row) => {
       const obj: Record<string, string> = {};
-      headers.forEach((header, i) => {
+      headersRow.forEach((header, i) => {
         obj[header] = row[i] || "";
       });
       return obj;
@@ -36,7 +38,9 @@ export async function GET() {
 
 // POST /api/sheets/reservations - Aggiungi una prenotazione
 export async function POST(request: Request) {
-  if (!isSheetsConfigured()) {
+  const headers = request.headers;
+  
+  if (!isSheetsConfigured(headers)) {
     return NextResponse.json({ 
       error: "Google Sheets non configurato",
       configured: false 
@@ -47,14 +51,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     
     // Inizializza il foglio se vuoto
-    const data = await readSheet("Prenotazioni!A1:L1");
+    const data = await readSheet("Prenotazioni!A1:L1", headers);
     if (data.length === 0) {
       // Crea header
-      const headers = [
+      const headersRow = [
         "id", "cliente", "telefono", "email", "servizio", "data", "ora",
         "staff", "stato", "canale", "note", "creato"
       ];
-      await writeSheet("Prenotazioni!A1:L1", [headers]);
+      await writeSheet("Prenotazioni!A1:L1", [headersRow], headers);
     }
 
     // Formatta i dati per la riga
@@ -73,7 +77,7 @@ export async function POST(request: Request) {
       body.creato || new Date().toISOString(),
     ];
 
-    const success = await appendSheet("Prenotazioni", row);
+    const success = await appendSheet("Prenotazioni", row, headers);
     
     if (success) {
       return NextResponse.json({ success: true, configured: true });

@@ -1,10 +1,15 @@
 import { google } from "googleapis";
 
 // Google Sheets configuration
-// Supporta sia variabili d'ambiente che localStorage (per configurazione lato client)
+// Supporta sia variabili d'ambiente che headers (passati dal client)
 
 function getSpreadsheetIdFromEnv(): string {
   return process.env.GOOGLE_SHEET_ID || "";
+}
+
+// Estrai spreadsheet ID da headers (inviati dal client)
+export function getSpreadsheetIdFromHeaders(headers: Headers): string {
+  return headers.get("x-gsheet-id") || getSpreadsheetIdFromEnv();
 }
 
 function getSpreadsheetIdFromStorage(): string {
@@ -17,14 +22,28 @@ export function getSpreadsheetId(): string {
 }
 
 // Crea l'auth client per il service account
-function getAuth() {
+export function getAuth(headers?: Headers) {
   // Prova prima le variabili d'ambiente
   let credentials = {
     client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
     private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
   };
 
-  // Se non ci sono env vars, prova localStorage
+  // Se non ci sono env vars, prova gli header (passati dal client)
+  if (!credentials.client_email || !credentials.private_key) {
+    if (headers) {
+      const emailFromHeader = headers.get("x-gsheet-email");
+      const keyFromHeader = headers.get("x-gsheet-key");
+      if (emailFromHeader && keyFromHeader) {
+        credentials = {
+          client_email: emailFromHeader,
+          private_key: keyFromHeader.replace(/\\n/g, "\n"),
+        };
+      }
+    }
+  }
+
+  // Se non ci sono env vars, prova localStorage (solo lato client)
   if (!credentials.client_email || !credentials.private_key) {
     if (typeof window !== "undefined") {
       credentials = {
@@ -47,8 +66,8 @@ function getAuth() {
 }
 
 // Ottieni l'istanza di Google Sheets
-export async function getSheets() {
-  const auth = getAuth();
+export async function getSheets(headers?: Headers) {
+  const auth = getAuth(headers);
   if (!auth) {
     return null;
   }
@@ -56,9 +75,9 @@ export async function getSheets() {
 }
 
 // Leggi dati da un foglio
-export async function readSheet(sheetName: string): Promise<string[][]> {
-  const sheets = await getSheets();
-  const sheetId = getSpreadsheetId();
+export async function readSheet(sheetName: string, headers?: Headers): Promise<string[][]> {
+  const sheets = await getSheets(headers);
+  const sheetId = getSpreadsheetIdFromHeaders(headers || new Headers()) || getSpreadsheetId();
   if (!sheets || !sheetId) {
     return [];
   }
@@ -76,9 +95,9 @@ export async function readSheet(sheetName: string): Promise<string[][]> {
 }
 
 // Scrivi dati in un foglio
-export async function writeSheet(sheetName: string, values: string[][]): Promise<boolean> {
-  const sheets = await getSheets();
-  const sheetId = getSpreadsheetId();
+export async function writeSheet(sheetName: string, values: string[][], headers?: Headers): Promise<boolean> {
+  const sheets = await getSheets(headers);
+  const sheetId = getSpreadsheetIdFromHeaders(headers || new Headers()) || getSpreadsheetId();
   if (!sheets || !sheetId) {
     return false;
   }
@@ -98,9 +117,9 @@ export async function writeSheet(sheetName: string, values: string[][]): Promise
 }
 
 // Aggiungi una riga al foglio
-export async function appendSheet(sheetName: string, values: string[]): Promise<boolean> {
-  const sheets = await getSheets();
-  const sheetId = getSpreadsheetId();
+export async function appendSheet(sheetName: string, values: string[], headers?: Headers): Promise<boolean> {
+  const sheets = await getSheets(headers);
+  const sheetId = getSpreadsheetIdFromHeaders(headers || new Headers()) || getSpreadsheetId();
   if (!sheets || !sheetId) {
     return false;
   }
@@ -120,12 +139,18 @@ export async function appendSheet(sheetName: string, values: string[]): Promise<
 }
 
 // Verifica se Google Sheets è configurato
-export function isSheetsConfigured(): boolean {
-  const sheetId = getSpreadsheetId();
-  const hasCredentials = !!(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY);
+export function isSheetsConfigured(headers?: Headers): boolean {
+  const sheetId = getSpreadsheetIdFromHeaders(headers || new Headers()) || getSpreadsheetId();
+  const hasEnvCredentials = !!(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY);
+  
+  // Check headers for credentials
+  const hasHeaderCredentials = !!(headers?.get("x-gsheet-email") && headers?.get("x-gsheet-key"));
+  
+  // Check localStorage for credentials
   const hasLocalStorage = typeof window !== "undefined" && !!(
     localStorage.getItem("gsheet_email") && 
     localStorage.getItem("gsheet_key")
   );
-  return !!(sheetId && (hasCredentials || hasLocalStorage));
+  
+  return !!(sheetId && (hasEnvCredentials || hasHeaderCredentials || hasLocalStorage));
 }

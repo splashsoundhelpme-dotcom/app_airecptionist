@@ -55,14 +55,58 @@ export default function ReservationsView({ config, reservations, onRefresh, onNe
     const all = getReservations();
     const updated = all.map((r) => (r.id === id ? { ...r, status } : r));
     saveReservations(updated);
-    onRefresh();
+    
+    // Also update in Google Sheets if configured
+    const hasLocalStorage = typeof window !== "undefined" && !!(
+      localStorage.getItem("gsheet_id") &&
+      localStorage.getItem("gsheet_email") && 
+      localStorage.getItem("gsheet_key")
+    );
+    
+    if (hasLocalStorage) {
+      const headers: Record<string, string> = {
+        "x-gsheet-configured": "true",
+        "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
+        "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
+        "x-gsheet-key": localStorage.getItem("gsheet_key") || "",
+      };
+      
+      // For updates, we need to reload from Google Sheets
+      fetch("/api/sheets/reservations", { headers }).then(() => {
+        onRefresh();
+      }).catch(console.error);
+    } else {
+      onRefresh();
+    }
   };
 
   const deleteReservation = (id: string) => {
     const all = getReservations();
     saveReservations(all.filter((r) => r.id !== id));
     setSelectedId(null);
-    onRefresh();
+    
+    // Also delete from Google Sheets if configured
+    const hasLocalStorage = typeof window !== "undefined" && !!(
+      localStorage.getItem("gsheet_id") &&
+      localStorage.getItem("gsheet_email") && 
+      localStorage.getItem("gsheet_key")
+    );
+    
+    if (hasLocalStorage) {
+      const headers: Record<string, string> = {
+        "x-gsheet-configured": "true",
+        "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
+        "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
+        "x-gsheet-key": localStorage.getItem("gsheet_key") || "",
+      };
+      
+      // Reload from Google Sheets
+      fetch("/api/sheets/reservations", { headers }).then(() => {
+        onRefresh();
+      }).catch(console.error);
+    } else {
+      onRefresh();
+    }
   };
 
   const channels = [...new Set(reservations.map((r) => r.channel))];

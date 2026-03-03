@@ -28,15 +28,74 @@ export default function AdminApp({ onLogout, onGoToSetup, onGoToPricing }: Props
 
   useEffect(() => {
     // Initialize from localStorage after mount (client-side only)
-    const init = () => {
+    const init = async () => {
+      // Check if Google Sheets is configured
+      const hasLocalStorage = typeof window !== "undefined" && !!(
+        localStorage.getItem("gsheet_id") &&
+        localStorage.getItem("gsheet_email") && 
+        localStorage.getItem("gsheet_key")
+      );
+      
+      // Also load config
       setConfig(getConfig());
-      setReservations(getReservations());
       setNotifications(getNotifications());
+      
+      if (hasLocalStorage) {
+        // Build headers with localStorage values
+        const headers: Record<string, string> = {
+          "x-gsheet-configured": "true",
+          "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
+          "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
+          "x-gsheet-key": localStorage.getItem("gsheet_key") || "",
+        };
+        
+        // Try to load reservations from Google Sheets
+        try {
+          const resRes = await fetch("/api/sheets/reservations", { headers });
+          const dataRes = await resRes.json();
+          if (dataRes.reservations && Array.isArray(dataRes.reservations)) {
+            setReservations(dataRes.reservations);
+            return;
+          }
+        } catch (e) {
+          console.error("Failed to load from Google Sheets:", e);
+        }
+      }
+      
+      // Fall back to localStorage
+      setReservations(getReservations());
     };
     init();
   }, []);
 
-  const refreshReservations = () => {
+  const refreshReservations = async () => {
+    const hasLocalStorage = typeof window !== "undefined" && !!(
+      localStorage.getItem("gsheet_id") &&
+      localStorage.getItem("gsheet_email") && 
+      localStorage.getItem("gsheet_key")
+    );
+    
+    if (hasLocalStorage) {
+      const headers: Record<string, string> = {
+        "x-gsheet-configured": "true",
+        "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
+        "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
+        "x-gsheet-key": localStorage.getItem("gsheet_key") || "",
+      };
+      
+      try {
+        const res = await fetch("/api/sheets/reservations", { headers });
+        const data = await res.json();
+        if (data.reservations && Array.isArray(data.reservations)) {
+          setReservations(data.reservations);
+          return;
+        }
+      } catch (e) {
+        console.error("Failed to refresh from Google Sheets:", e);
+      }
+    }
+    
+    // Fall back to localStorage
     setReservations(getReservations());
   };
 

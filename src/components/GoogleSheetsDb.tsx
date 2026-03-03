@@ -30,11 +30,16 @@ export default function GoogleSheetsDb({ onConfigured }: GoogleSheetsDbProps) {
           localStorage.getItem("gsheet_key")
         );
         
-        const res = await fetch("/api/sheets/status", {
-          headers: {
-            "x-gsheet-configured": hasLocalStorage ? "true" : "false"
-          }
-        });
+        // Build headers with localStorage values
+        const headers: Record<string, string> = {};
+        if (hasLocalStorage) {
+          headers["x-gsheet-configured"] = "true";
+          headers["x-gsheet-id"] = localStorage.getItem("gsheet_id") || "";
+          headers["x-gsheet-email"] = localStorage.getItem("gsheet_email") || "";
+          headers["x-gsheet-key"] = localStorage.getItem("gsheet_key") || "";
+        }
+        
+        const res = await fetch("/api/sheets/status", { headers });
         const data = await res.json();
         if (mounted) {
           setStatus({

@@ -83,7 +83,7 @@ export default function NewReservationModal({ config, onClose, onSaved }: Props)
     setError("");
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.clientName.trim()) { setError("Inserisci il nome del cliente"); return; }
     if (!form.service.trim()) { setError("Seleziona o inserisci un servizio"); return; }
     if (!form.dateTime) { setError("Seleziona data e ora"); return; }
@@ -113,6 +113,48 @@ export default function NewReservationModal({ config, onClose, onSaved }: Props)
 
     const all = getReservations();
     saveReservations([...all, reservation]);
+    
+    // Try to save to Google Sheets if configured
+    const hasLocalStorage = typeof window !== "undefined" && !!(
+      localStorage.getItem("gsheet_id") &&
+      localStorage.getItem("gsheet_email") && 
+      localStorage.getItem("gsheet_key")
+    );
+    
+    if (hasLocalStorage) {
+      const headers: Record<string, string> = {
+        "x-gsheet-configured": "true",
+        "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
+        "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
+        "x-gsheet-key": localStorage.getItem("gsheet_key") || "",
+      };
+      
+      // Format data for Google Sheets
+      const sheetData = {
+        id: reservation.id,
+        cliente: reservation.clientName,
+        telefono: reservation.clientPhone || "",
+        email: reservation.clientEmail || "",
+        servizio: reservation.service,
+        data: formatDateTime(reservation.dateTime).date,
+        ora: formatDateTime(reservation.dateTime).time,
+        staff: reservation.staffId || "",
+        stato: reservation.status,
+        canale: reservation.channel,
+        note: reservation.notes || "",
+        creato: reservation.createdAt,
+      };
+      
+      try {
+        await fetch("/api/sheets/reservations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify(sheetData),
+        });
+      } catch (e) {
+        console.error("Failed to save to Google Sheets:", e);
+      }
+    }
     
     // Send email notification to business owner
     if (config.notifyEmail) {
