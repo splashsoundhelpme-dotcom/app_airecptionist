@@ -78,11 +78,16 @@ export function getAuth(headers?: Headers) {
 
 // Ottieni l'istanza di Google Sheets
 export async function getSheets(headers?: Headers) {
+  console.log("[googleSheets getSheets] Starting...");
   const auth = getAuth(headers);
   if (!auth) {
+    console.log("[googleSheets getSheets] FAILED - getAuth returned null");
     return null;
   }
-  return google.sheets({ version: "v4", auth });
+  console.log("[googleSheets getSheets] Auth created successfully, creating sheets client...");
+  const sheets = google.sheets({ version: "v4", auth });
+  console.log("[googleSheets getSheets] Sheets client ready");
+  return sheets;
 }
 
 // Leggi dati da un foglio
@@ -129,22 +134,36 @@ export async function writeSheet(sheetName: string, values: string[][], headers?
 
 // Aggiungi una riga al foglio
 export async function appendSheet(sheetName: string, values: string[], headers?: Headers): Promise<boolean> {
-  const sheets = await getSheets(headers);
   const sheetId = getSpreadsheetIdFromHeaders(headers || new Headers()) || getSpreadsheetId();
-  if (!sheets || !sheetId) {
+  console.log("[googleSheets appendSheet] Starting...");
+  console.log("  - sheetId:", sheetId ? "SET (" + sheetId.substring(0, 20) + "...)" : "EMPTY");
+  console.log("  - sheetName:", sheetName);
+  console.log("  - values:", values);
+  
+  const sheets = await getSheets(headers);
+  if (!sheets) {
+    console.log("[googleSheets appendSheet] FAILED - getSheets returned null");
+    return false;
+  }
+  if (!sheetId) {
+    console.log("[googleSheets appendSheet] FAILED - no sheetId");
     return false;
   }
 
   try {
-    await sheets.spreadsheets.values.append({
+    console.log("[googleSheets appendSheet] Calling Google Sheets API...");
+    const response = await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
       range: sheetName,
       valueInputOption: "USER_ENTERED",
       requestBody: { values: [values] },
     });
+    console.log("[googleSheets appendSheet] SUCCESS! Response:", response.data);
     return true;
   } catch (error) {
-    console.error(`Errore nell'aggiunta al foglio ${sheetName}:`, error);
+    console.error("[googleSheets appendSheet] FAILED - Google Sheets API error:", error);
+    const errorObj = error as { response?: { data?: unknown } };
+    console.error("[googleSheets appendSheet] Error details:", errorObj.response?.data);
     return false;
   }
 }

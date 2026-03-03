@@ -93,12 +93,15 @@ export async function POST(request: Request) {
     const success = await appendSheet("Prenotazioni", row, headers);
     
     if (success) {
+      console.log("[sheets/reservations POST] Successfully wrote row to sheet");
       return NextResponse.json({ success: true, configured: true });
     } else {
-      return NextResponse.json({ error: "Errore nell'inserimento" }, { status: 500 });
+      console.log("[sheets/reservations POST] FAILED to write row - check server logs");
+      return NextResponse.json({ error: "Errore nell'inserimento", configured: true }, { status: 500 });
     }
   } catch (error) {
     console.error("Errore inserimento prenotazione:", error);
-    return NextResponse.json({ error: "Errore nell'inserimento" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: "Errore nell'inserimento", details: errorMessage, configured: true }, { status: 500 });
   }
 }
