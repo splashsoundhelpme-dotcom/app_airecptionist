@@ -23,17 +23,22 @@ export function getSpreadsheetId(): string {
 
 // Crea l'auth client per il service account
 export function getAuth(headers?: Headers) {
+  console.log("[googleSheets getAuth] Starting...");
+  
   // Prova prima le variabili d'ambiente
   let credentials = {
     client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
     private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
   };
+  
+  console.log("[googleSheets getAuth] Env credentials:", credentials.client_email ? "SET" : "EMPTY");
 
   // Se non ci sono env vars, prova gli header (passati dal client)
   if (!credentials.client_email || !credentials.private_key) {
     if (headers) {
       const emailFromHeader = headers.get("x-gsheet-email");
       const keyFromHeader = headers.get("x-gsheet-key");
+      console.log("[googleSheets getAuth] Header credentials:", emailFromHeader ? "SET" : "EMPTY", "| key:", keyFromHeader ? "SET (" + keyFromHeader.length + ")" : "EMPTY");
       if (emailFromHeader && keyFromHeader) {
         credentials = {
           client_email: emailFromHeader,
@@ -46,16 +51,22 @@ export function getAuth(headers?: Headers) {
   // Se non ci sono env vars, prova localStorage (solo lato client)
   if (!credentials.client_email || !credentials.private_key) {
     if (typeof window !== "undefined") {
+      const lsEmail = localStorage.getItem("gsheet_email");
+      const lsKey = localStorage.getItem("gsheet_key");
+      console.log("[googleSheets getAuth] localStorage credentials:", lsEmail ? "SET" : "EMPTY", "| key:", lsKey ? "SET (" + lsKey.length + ")" : "EMPTY");
       credentials = {
-        client_email: localStorage.getItem("gsheet_email") || undefined,
-        private_key: localStorage.getItem("gsheet_key") || undefined,
+        client_email: lsEmail || undefined,
+        private_key: lsKey || undefined,
       };
     }
   }
 
   if (!credentials.client_email || !credentials.private_key) {
+    console.log("[googleSheets getAuth] NO CREDENTIALS FOUND - returning null");
     return null;
   }
+  
+  console.log("[googleSheets getAuth] Creating auth with email:", credentials.client_email);
 
   const auth = new google.auth.GoogleAuth({
     credentials,

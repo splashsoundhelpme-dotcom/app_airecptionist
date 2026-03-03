@@ -5,7 +5,14 @@ import { readSheet, writeSheet, appendSheet, isSheetsConfigured, getSpreadsheetI
 export async function GET(request: Request) {
   const headers = request.headers;
   
+  console.log("[sheets/reservations GET] Request received");
+  const hasLocalStorage = headers.get("x-gsheet-configured") === "true";
+  console.log("  - x-gsheet-configured:", hasLocalStorage);
+  console.log("  - x-gsheet-id:", headers.get("x-gsheet-id")?.substring(0, 20) + "...");
+  console.log("  - x-gsheet-email:", headers.get("x-gsheet-email"));
+  
   if (!isSheetsConfigured(headers)) {
+    console.log("  - isSheetsConfigured: FALSE");
     return NextResponse.json({ 
       error: "Google Sheets non configurato",
       configured: false 
@@ -40,7 +47,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const headers = request.headers;
   
+  console.log("[sheets/reservations POST] Request received");
+  const hasLocalStorage = headers.get("x-gsheet-configured") === "true";
+  console.log("  - x-gsheet-configured:", hasLocalStorage);
+  console.log("  - x-gsheet-id:", headers.get("x-gsheet-id")?.substring(0, 20) + "...");
+  
   if (!isSheetsConfigured(headers)) {
+    console.log("  - isSheetsConfigured: FALSE");
     return NextResponse.json({ 
       error: "Google Sheets non configurato",
       configured: false 

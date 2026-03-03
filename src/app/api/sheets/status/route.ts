@@ -11,6 +11,13 @@ export async function GET(request: Request) {
   const privateKey = headers.get("x-gsheet-key") || "";
   const sheetIdFromHeader = headers.get("x-gsheet-id") || "";
   
+  console.log("[sheets/status] Request received:");
+  console.log("  - hasLocalStorage:", hasLocalStorage);
+  console.log("  - clientEmail:", clientEmail ? "SET" : "EMPTY");
+  console.log("  - privateKey:", privateKey ? "SET (length: " + privateKey.length + ")" : "EMPTY");
+  console.log("  - sheetIdFromHeader:", sheetIdFromHeader ? sheetIdFromHeader.substring(0, 20) + "..." : "EMPTY");
+  console.log("  - all headers:", Object.fromEntries(headers.entries()));
+  
   const envSheetId = process.env.GOOGLE_SHEET_ID || "";
   const hasEnvCredentials = !!(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY);
   

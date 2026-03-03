@@ -29,6 +29,8 @@ export default function AdminApp({ onLogout, onGoToSetup, onGoToPricing }: Props
   useEffect(() => {
     // Initialize from localStorage after mount (client-side only)
     const init = async () => {
+      console.log("[AdminApp] Initializing...");
+      
       // Check if Google Sheets is configured
       const hasLocalStorage = typeof window !== "undefined" && !!(
         localStorage.getItem("gsheet_id") &&
@@ -36,11 +38,18 @@ export default function AdminApp({ onLogout, onGoToSetup, onGoToPricing }: Props
         localStorage.getItem("gsheet_key")
       );
       
+      console.log("[AdminApp] Google Sheets localStorage:", {
+        id: localStorage.getItem("gsheet_id") ? "SET (" + localStorage.getItem("gsheet_id")?.length + ")" : "EMPTY",
+        email: localStorage.getItem("gsheet_email") ? "SET" : "EMPTY",
+        key: localStorage.getItem("gsheet_key") ? "SET (" + localStorage.getItem("gsheet_key")?.length + ")" : "EMPTY"
+      });
+      
       // Also load config
       setConfig(getConfig());
       setNotifications(getNotifications());
       
       if (hasLocalStorage) {
+        console.log("[AdminApp] Google Sheets IS configured, fetching reservations...");
         // Build headers with localStorage values
         const headers: Record<string, string> = {
           "x-gsheet-configured": "true",
@@ -49,17 +58,27 @@ export default function AdminApp({ onLogout, onGoToSetup, onGoToPricing }: Props
           "x-gsheet-key": localStorage.getItem("gsheet_key") || "",
         };
         
+        console.log("[AdminApp] Headers being sent:", {
+          "x-gsheet-configured": headers["x-gsheet-configured"],
+          "x-gsheet-id": headers["x-gsheet-id"].substring(0, 20) + "...",
+          "x-gsheet-email": headers["x-gsheet-email"],
+          "x-gsheet-key": headers["x-gsheet-key"]?.substring(0, 20) + "..."
+        });
+        
         // Try to load reservations from Google Sheets
         try {
           const resRes = await fetch("/api/sheets/reservations", { headers });
           const dataRes = await resRes.json();
+          console.log("[AdminApp] Response from /api/sheets/reservations:", dataRes);
           if (dataRes.reservations && Array.isArray(dataRes.reservations)) {
             setReservations(dataRes.reservations);
             return;
           }
         } catch (e) {
-          console.error("Failed to load from Google Sheets:", e);
+          console.error("[AdminApp] Failed to load from Google Sheets:", e);
         }
+      } else {
+        console.log("[AdminApp] Google Sheets NOT configured, using localStorage");
       }
       
       // Fall back to localStorage
