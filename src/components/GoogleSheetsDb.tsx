@@ -76,8 +76,28 @@ export default function GoogleSheetsDb({ onConfigured }: GoogleSheetsDbProps) {
 
     setStatus(prev => ({ ...prev, checking: true, message: "Salvataggio..." }));
 
+    // Test credentials by making an API call
     try {
-      // Salva la configurazione nel localStorage
+      const testHeaders: Record<string, string> = {
+        "x-gsheet-configured": "true",
+        "x-gsheet-id": sheetId,
+        "x-gsheet-email": serviceEmail,
+        "x-gsheet-key": privateKey,
+      };
+      
+      const testRes = await fetch("/api/sheets/status", { headers: testHeaders });
+      const testData = await testRes.json();
+      
+      if (!testData.configured) {
+        setStatus({
+          configured: false,
+          checking: false,
+          message: testData.message || "Credenziali non valide",
+        });
+        return;
+      }
+      
+      // Salva la configurazione nel localStorage solo se le credenziali funzionano
       localStorage.setItem("gsheet_id", sheetId);
       localStorage.setItem("gsheet_email", serviceEmail);
       localStorage.setItem("gsheet_key", privateKey);
@@ -85,14 +105,14 @@ export default function GoogleSheetsDb({ onConfigured }: GoogleSheetsDbProps) {
       setStatus({
         configured: true,
         checking: false,
-        message: "Configurazione salvata!",
+        message: "Configurazione salvata e verificata!",
       });
       onConfigured?.(true);
     } catch (error) {
       setStatus({
         configured: false,
         checking: false,
-        message: "Errore nel salvataggio",
+        message: "Errore nella verifica delle credenziali",
       });
     }
   };
