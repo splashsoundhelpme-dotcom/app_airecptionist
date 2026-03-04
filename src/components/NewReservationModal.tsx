@@ -146,13 +146,25 @@ export default function NewReservationModal({ config, onClose, onSaved }: Props)
       };
       
       try {
-        await fetch("/api/sheets/reservations", {
+        const response = await fetch("/api/sheets/reservations", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...headers },
           body: JSON.stringify(sheetData),
         });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+          console.error("Google Sheets save failed:", result);
+          setError("Errore Google Sheets: " + (result.error || result.message || "Errore sconosciuto"));
+          return;
+        }
+        
+        console.log("Google Sheets save success:", result);
       } catch (e) {
         console.error("Failed to save to Google Sheets:", e);
+        setError("Errore di connessione: " + String(e));
+        return;
       }
     }
     
