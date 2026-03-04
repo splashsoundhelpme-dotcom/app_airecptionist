@@ -179,7 +179,7 @@ export default function NewReservationModal({ config, onClose, onSaved }: Props)
         email: !gsheetEmail,
         key: !gsheetKey
       });
-      alert("⚠️ Salvato solo localmente - Google Sheets non configurato. Vai in Impostazioni → Database per configurarlo.");
+      // Google Sheets is optional - just log and continue
     }
     
     // Send email notification to business owner
@@ -198,255 +198,201 @@ export default function NewReservationModal({ config, onClose, onSaved }: Props)
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.5)",
+        background: "rgba(0, 0, 0, 0.5)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 100,
-        padding: 24,
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        zIndex: 1000,
+        padding: 20,
       }}
     >
       <div
-        className="card animate-fade-in"
         style={{
+          background: "white",
+          borderRadius: 16,
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
           width: "100%",
-          maxWidth: 560,
+          maxWidth: 700,
           maxHeight: "90vh",
           overflowY: "auto",
-          padding: 28,
         }}
       >
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text)" }}>
+        <div
+          style={{
+            padding: 24,
+            borderBottom: "1px solid #e5e7eb",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: "#111827" }}>
             📅 Nuova Prenotazione
           </h2>
-          <button className="btn btn-ghost btn-sm" onClick={onClose} style={{ padding: "6px 10px" }}>
-            ✕
+          <button
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: 24,
+              cursor: "pointer",
+              color: "#6b7280",
+            }}
+          >
+            ×
           </button>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Client info */}
-          <div>
-            <label className="form-label">Nome cliente *</label>
-            <input
-              className="form-input"
-              placeholder="Es. Mario Rossi"
-              value={form.clientName}
-              onChange={(e) => update("clientName", e.target.value)}
-              autoFocus
-            />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ padding: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div>
+              <label className="form-label">Nome cliente *</label>
+              <input
+                className="form-input"
+                value={form.clientName}
+                onChange={(e) => update("clientName", e.target.value)}
+                placeholder="Inserisci il nome del cliente"
+              />
+            </div>
             <div>
               <label className="form-label">Telefono</label>
               <input
                 className="form-input"
-                type="tel"
-                placeholder="+39 333 1234567"
                 value={form.clientPhone}
                 onChange={(e) => update("clientPhone", e.target.value)}
+                placeholder="Numero di telefono"
               />
             </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
             <div>
               <label className="form-label">Email</label>
               <input
                 className="form-input"
                 type="email"
-                placeholder="cliente@email.it"
                 value={form.clientEmail}
                 onChange={(e) => update("clientEmail", e.target.value)}
+                placeholder="email@esempio.com"
               />
             </div>
-          </div>
-
-          {/* Service */}
-          <div>
-            <label className="form-label">Servizio *</label>
-            {services.length > 0 ? (
-              <select
-                className="form-input"
-                value={form.service}
-                onChange={(e) => {
-                  const svc = services.find((s) => s.name === e.target.value);
-                  update("service", e.target.value);
-                  if (svc) update("duration", String(svc.duration));
-                }}
-              >
-                <option value="">— Seleziona servizio —</option>
-                {[...new Set(services.map((s) => s.category))].map((cat) => (
-                  <optgroup key={cat} label={cat}>
-                    {services
-                      .filter((s) => s.category === cat)
-                      .map((s) => (
-                        <option key={s.id} value={s.name}>
-                          {s.name} ({s.duration} min{s.price > 0 ? ` · €${s.price}` : ""})
-                        </option>
-                      ))}
-                  </optgroup>
-                ))}
-              </select>
-            ) : (
-              <input
-                className="form-input"
-                placeholder="Es. Taglio capelli"
-                value={form.service}
-                onChange={(e) => update("service", e.target.value)}
-              />
+            {config.businessType === "ristorante" && (
+              <div>
+                <label className="form-label">Coperti *</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  min={1}
+                  value={form.covers}
+                  onChange={(e) => update("covers", e.target.value)}
+                  placeholder="Numero di coperti"
+                />
+              </div>
             )}
           </div>
 
-          {/* Date/time + duration */}
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12 }}>
+          <div style={{ marginTop: 16 }}>
+            <label className="form-label">Servizio *</label>
+            <select
+              className="form-input"
+              value={form.service}
+              onChange={(e) => update("service", e.target.value)}
+            >
+              <option value="">Seleziona un servizio</option>
+              {services.map((service) => (
+                <option key={service.id} value={service.name}>
+                  {service.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 16 }}>
             <div>
-              <label className="form-label">Data e ora *</label>
+              <label className="form-label">Data e Ora *</label>
               <input
                 className="form-input"
                 type="datetime-local"
+                min={minDateTime}
                 value={form.dateTime}
                 onChange={(e) => update("dateTime", e.target.value)}
-                min={minDateTime}
               />
             </div>
             <div>
-              <label className="form-label">Durata (min)</label>
-              <input
+              <label className="form-label">Canale</label>
+              <select
                 className="form-input"
-                type="number"
-                placeholder="60"
-                value={form.duration}
-                onChange={(e) => update("duration", e.target.value)}
-                min={5}
-                max={480}
-              />
+                value={form.channel}
+                onChange={(e) => update("channel", e.target.value)}
+              >
+                <option value="email">📧 Email</option>
+                <option value="telefono">📞 Telefono</option>
+                <option value="sms">📱 SMS</option>
+                <option value="whatsapp">💬 WhatsApp</option>
+                <option value="online">🌐 Online</option>
+                <option value="manuale">✍️ Manuale</option>
+                <option value="ai">🤖 AI</option>
+              </select>
             </div>
           </div>
 
-          {/* Restaurant-specific */}
-          {config.businessType === "ristorante" && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label className="form-label">Numero coperti *</label>
-                <input
-                  className="form-input"
-                  type="number"
-                  placeholder="2"
-                  value={form.covers}
-                  onChange={(e) => update("covers", e.target.value)}
-                  min={1}
-                  max={config.maxCovers || 100}
-                />
-              </div>
-              <div>
-                <label className="form-label">Numero tavolo</label>
-                <input
-                  className="form-input"
-                  type="number"
-                  placeholder="Es. 5"
-                  value={form.tableNumber}
-                  onChange={(e) => update("tableNumber", e.target.value)}
-                  min={1}
-                  max={config.tableCount || 50}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Staff assignment (hair/beauty) */}
-          {config.businessType !== "ristorante" && staff.length > 0 && (
-            <div>
-              <label className="form-label">Assegna a</label>
+          {staff.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <label className="form-label">Staff</label>
               <select
                 className="form-input"
                 value={form.staffId}
                 onChange={(e) => update("staffId", e.target.value)}
               >
-                <option value="">— Nessuna preferenza —</option>
-                {staff.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.role})
+                <option value="">Seleziona un membro dello staff</option>
+                {staff.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
                   </option>
                 ))}
               </select>
             </div>
           )}
 
-          {/* Channel */}
-          <div>
-            <label className="form-label">Canale di prenotazione</label>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {[
-                { id: "manuale", label: "✏️ Manuale" },
-                { id: "telefono", label: "📞 Telefono" },
-                { id: "email", label: "✉️ Email" },
-                { id: "sms", label: "💬 SMS" },
-                { id: "whatsapp", label: "📱 WhatsApp" },
-                { id: "online", label: "🌐 Online" },
-              ].map((ch) => (
-                <button
-                  key={ch.id}
-                  type="button"
-                  onClick={() => update("channel", ch.id)}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: 99,
-                    fontSize: 13,
-                    cursor: "pointer",
-                    border: form.channel === ch.id ? "2px solid var(--primary)" : "2px solid var(--border)",
-                    background: form.channel === ch.id ? "var(--primary-muted)" : "var(--surface)",
-                    color: form.channel === ch.id ? "var(--primary)" : "var(--text-secondary)",
-                    fontWeight: form.channel === ch.id ? 600 : 400,
-                    transition: "all 0.15s",
-                  }}
-                >
-                  {ch.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="form-label">Note (opzionale)</label>
+          <div style={{ marginTop: 16 }}>
+            <label className="form-label">Note</label>
             <textarea
               className="form-input"
-              placeholder="Richieste speciali, preferenze, allergie..."
               value={form.notes}
               onChange={(e) => update("notes", e.target.value)}
               rows={3}
-              style={{ resize: "vertical" }}
+              placeholder="Note aggiuntive..."
             />
           </div>
 
-          {/* Error */}
           {error && (
-            <div className="notification notification-error" style={{ fontSize: 13 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
+            <div
+              style={{
+                marginTop: 16,
+                padding: 12,
+                borderRadius: 8,
+                background: "#fef2f2",
+                color: "#dc2626",
+                fontSize: 14,
+              }}
+            >
               {error}
             </div>
           )}
 
-          {/* Actions */}
-          <div style={{ display: "flex", gap: 10, paddingTop: 8 }}>
-            <button className="btn btn-secondary" onClick={onClose} style={{ flex: 1 }}>
+          <div
+            style={{
+              marginTop: 24,
+              display: "flex",
+              gap: 12,
+              justifyContent: "flex-end",
+            }}
+          >
+            <button className="btn btn-secondary" onClick={onClose}>
               Annulla
             </button>
-            <button className="btn btn-primary" onClick={handleSave} style={{ flex: 2 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-                <polyline points="17 21 17 13 7 13 7 21" />
-                <polyline points="7 3 7 8 15 8" />
-              </svg>
-              Salva prenotazione
+            <button className="btn btn-primary" onClick={handleSave}>
+              💾 Salva Prenotazione
             </button>
           </div>
         </div>
