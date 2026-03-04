@@ -51,18 +51,21 @@ export default function ReservationsView({ config, reservations, onRefresh, onNe
 
   const selected = reservations.find((r) => r.id === selectedId);
 
-  const updateStatus = (id: string, status: ReservationStatus) => {
+  const updateStatus = async (id: string, status: ReservationStatus) => {
     const all = getReservations();
+    const reservation = all.find((r) => r.id === id);
+    if (!reservation) return;
+
     const updated = all.map((r) => (r.id === id ? { ...r, status } : r));
     saveReservations(updated);
-    
+
     // Also update in Google Sheets if configured
     const hasLocalStorage = typeof window !== "undefined" && !!(
       localStorage.getItem("gsheet_id") &&
-      localStorage.getItem("gsheet_email") && 
+      localStorage.getItem("gsheet_email") &&
       localStorage.getItem("gsheet_key")
     );
-    
+
     if (hasLocalStorage) {
       const headers: Record<string, string> = {
         "x-gsheet-configured": "true",
@@ -70,28 +73,55 @@ export default function ReservationsView({ config, reservations, onRefresh, onNe
         "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
         "x-gsheet-key": localStorage.getItem("gsheet_key") || "",
       };
-      
-      // For updates, we need to reload from Google Sheets
-      fetch("/api/sheets/reservations", { headers }).then(() => {
-        onRefresh();
-      }).catch(console.error);
-    } else {
-      onRefresh();
+
+      const { date, time } = formatDateTime(reservation.dateTime);
+
+      // Update on Google Sheets
+      try {
+        const response = await fetch("/api/sheets/reservations", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify({
+            id: reservation.id,
+            cliente: reservation.clientName,
+            telefono: reservation.clientPhone || "",
+            email: reservation.clientEmail || "",
+            servizio: reservation.service,
+            data: date,
+            ora: time,
+            staff: reservation.staffId || "",
+            stato: status,
+            canale: reservation.channel,
+            note: reservation.notes || "",
+            creato: reservation.createdAt,
+          }),
+        });
+
+        if (!response.ok) {
+          console.error("Failed to update on Google Sheets:", await response.json());
+        } else {
+          console.log("Successfully updated on Google Sheets");
+        }
+      } catch (e) {
+        console.error("Error updating on Google Sheets:", e);
+      }
     }
+
+    onRefresh();
   };
 
-  const deleteReservation = (id: string) => {
+  const deleteReservation = async (id: string) => {
     const all = getReservations();
     saveReservations(all.filter((r) => r.id !== id));
     setSelectedId(null);
-    
+
     // Also delete from Google Sheets if configured
     const hasLocalStorage = typeof window !== "undefined" && !!(
       localStorage.getItem("gsheet_id") &&
-      localStorage.getItem("gsheet_email") && 
+      localStorage.getItem("gsheet_email") &&
       localStorage.getItem("gsheet_key")
     );
-    
+
     if (hasLocalStorage) {
       const headers: Record<string, string> = {
         "x-gsheet-configured": "true",
@@ -99,14 +129,25 @@ export default function ReservationsView({ config, reservations, onRefresh, onNe
         "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
         "x-gsheet-key": localStorage.getItem("gsheet_key") || "",
       };
-      
-      // Reload from Google Sheets
-      fetch("/api/sheets/reservations", { headers }).then(() => {
-        onRefresh();
-      }).catch(console.error);
-    } else {
-      onRefresh();
+
+      // Delete from Google Sheets
+      try {
+        const response = await fetch(`/api/sheets/reservations?id=${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers,
+        });
+
+        if (!response.ok) {
+          console.error("Failed to delete from Google Sheets:", await response.json());
+        } else {
+          console.log("Successfully deleted from Google Sheets");
+        }
+      } catch (e) {
+        console.error("Error deleting from Google Sheets:", e);
+      }
     }
+
+    onRefresh();
   };
 
   const channels = [...new Set(reservations.map((r) => r.channel))];

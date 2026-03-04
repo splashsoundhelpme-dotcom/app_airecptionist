@@ -168,19 +168,160 @@ export async function appendSheet(sheetName: string, values: string[], headers?:
   }
 }
 
+// Aggiorna una riga specifica (trova per ID nella prima colonna)
+export async function updateSheetRow(
+  sheetName: string,
+  id: string,
+  values: string[],
+  headers?: Headers
+): Promise<boolean> {
+  const sheetId = getSpreadsheetIdFromHeaders(headers || new Headers()) || getSpreadsheetId();
+  console.log("[googleSheets updateSheetRow] Starting...");
+  console.log("  - sheetId:", sheetId ? "SET" : "EMPTY");
+  console.log("  - sheetName:", sheetName);
+  console.log("  - id:", id);
+
+  const sheets = await getSheets(headers);
+  if (!sheets || !sheetId) {
+    console.log("[googleSheets updateSheetRow] FAILED - missing sheets or sheetId");
+    return false;
+  }
+
+  try {
+    // Leggi tutti i dati per trovare la riga
+    const allData = await readSheet(`${sheetName}!A:L`, headers);
+    if (allData.length <= 1) {
+      console.log("[googleSheets updateSheetRow] No data found");
+      return false;
+    }
+
+    // Trova la riga con l'ID corrispondente (prima colonna)
+    let rowIndex = -1;
+    for (let i = 1; i < allData.length; i++) {
+      if (allData[i][0] === id) {
+        rowIndex = i;
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      console.log("[googleSheets updateSheetRow] Row with id", id, "not found");
+      return false;
+    }
+
+    // La riga nel foglio è rowIndex + 1 (considerando header)
+    const sheetRowNumber = rowIndex + 1;
+    console.log("[googleSheets updateSheetRow] Found row at index", rowIndex, "(sheet row", sheetRowNumber + ")");
+
+    // Aggiorna la riga
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: `${sheetName}!A${sheetRowNumber + 1}:L${sheetRowNumber + 1}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [values] },
+    });
+
+    console.log("[googleSheets updateSheetRow] SUCCESS");
+    return true;
+  } catch (error) {
+    console.error("[googleSheets updateSheetRow] FAILED:", error);
+    return false;
+  }
+}
+
+// Cancella una riga specifica (trova per ID nella prima colonna)
+export async function deleteSheetRow(
+  sheetName: string,
+  id: string,
+  headers?: Headers
+): Promise<boolean> {
+  const sheetId = getSpreadsheetIdFromHeaders(headers || new Headers()) || getSpreadsheetId();
+  console.log("[googleSheets deleteSheetRow] Starting...");
+  console.log("  - sheetId:", sheetId ? "SET" : "EMPTY");
+  console.log("  - sheetName:", sheetName);
+  console.log("  - id:", id);
+
+  const sheets = await getSheets(headers);
+  if (!sheets || !sheetId) {
+    console.log("[googleSheets deleteSheetRow] FAILED - missing sheets or sheetId");
+    return false;
+  }
+
+  try {
+    // Leggi tutti i dati per trovare la riga
+    const allData = await readSheet(`${sheetName}!A:L`, headers);
+    if (allData.length <= 1) {
+      console.log("[googleSheets deleteSheetRow] No data found");
+      return false;
+    }
+
+    // Trova la riga con l'ID corrispondente (prima colonna)
+    let rowIndex = -1;
+    for (let i = 1; i < allData.length; i++) {
+      if (allData[i][0] === id) {
+        rowIndex = i;
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      console.log("[googleSheets deleteSheetRow] Row with id", id, "not found");
+      return false;
+    }
+
+    console.log("[googleSheets deleteSheetRow] Found row at index", rowIndex);
+
+    // Per cancellare, sovrascriviamo la riga con valori vuoti e poi
+    // usiamo l'API batchUpdate per eliminare la riga fisicamente
+    const sheetRowNumber = rowIndex + 1; // +1 perché le righe nel foglio partono da 1
+
+    // Prima svuotiamo la riga
+    const emptyRow = new Array(allData[0].length).fill("");
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: sheetId,
+      range: `${sheetName}!A${sheetRowNumber + 1}:L${sheetRowNumber + 1}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [emptyRow] },
+    });
+
+    // Poi eliminiamo la riga usando batchUpdate
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: sheetId,
+      requestBody: {
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId: 0, // Assumiamo il primo foglio, dovremmo ottenerlo dinamicamente
+              dimension: "ROWS",
+              startIndex: sheetRowNumber,
+              endIndex: sheetRowNumber + 1,
+            },
+          },
+        }],
+      },
+    });
+
+    console.log("[googleSheets deleteSheetRow] SUCCESS");
+    return true;
+  } catch (error) {
+    console.error("[googleSheets deleteSheetRow] FAILED:", error);
+    return false;
+  }
+}
+
 // Verifica se Google Sheets è configurato
 export function isSheetsConfigured(headers?: Headers): boolean {
   const sheetId = getSpreadsheetIdFromHeaders(headers || new Headers()) || getSpreadsheetId();
   const hasEnvCredentials = !!(process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY);
-  
+
   // Check headers for credentials
   const hasHeaderCredentials = !!(headers?.get("x-gsheet-email") && headers?.get("x-gsheet-key"));
-  
+
   // Check localStorage for credentials
   const hasLocalStorage = typeof window !== "undefined" && !!(
-    localStorage.getItem("gsheet_email") && 
+    localStorage.getItem("gsheet_email") &&
     localStorage.getItem("gsheet_key")
   );
-  
+
   return !!(sheetId && (hasEnvCredentials || hasHeaderCredentials || hasLocalStorage));
 }
