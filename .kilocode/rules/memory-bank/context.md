@@ -28,6 +28,12 @@ Complete admin platform for hairdressers, beauty salons, and restaurants with su
   - **API integrations**: ApiIntegrations component for Twilio (phone), SendGrid (email), WhatsApp Business API
   - Shared types (src/lib/types.ts) and store (src/lib/store.ts) with localStorage persistence
   - Admin design system (globals.css): neutral blue/slate palette, sidebar layout, tables, badges
+- [x] **Google Sheets full sync**: create, update, delete reservations sync to Google Sheets
+  - POST /api/sheets/reservations: create new reservation
+  - PUT /api/sheets/reservations: update existing reservation by ID
+  - DELETE /api/sheets/reservations: delete reservation by ID
+  - updateSheetRow() and deleteSheetRow() helpers in googleSheets.ts
+  - ReservationsView calls PUT/DELETE APIs when modifying/deleting reservations
 
 ## Current Structure
 
@@ -142,6 +148,7 @@ export async function GET() {
 
 | Date | Changes |
 |------|---------|
+| 2026-03-04 | Added full Google Sheets sync: PUT/DELETE APIs for update/delete reservations, with updateSheetRow() and deleteSheetRow() helpers |
 | 2026-03-04 | Added detailed debugging logs for Google Sheets credential verification |
 | 2026-03-03 | Fixed Google Sheets integration - credentials now passed via headers from client |
 | 2026-02-25 | Luxury salon booking page with FastAPI integration |
