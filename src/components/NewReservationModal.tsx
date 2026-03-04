@@ -115,13 +115,20 @@ export default function NewReservationModal({ config, onClose, onSaved }: Props)
     saveReservations([...all, reservation]);
     
     // Try to save to Google Sheets if configured
-    const hasLocalStorage = typeof window !== "undefined" && !!(
-      localStorage.getItem("gsheet_id") &&
-      localStorage.getItem("gsheet_email") && 
-      localStorage.getItem("gsheet_key")
-    );
+    const gsheetId = localStorage.getItem("gsheet_id");
+    const gsheetEmail = localStorage.getItem("gsheet_email");
+    const gsheetKey = localStorage.getItem("gsheet_key");
+    const hasLocalStorage = typeof window !== "undefined" && !!(gsheetId && gsheetEmail && gsheetKey);
+    
+    console.log("Google Sheets config check:", { 
+      hasLocalStorage, 
+      gsheetId: gsheetId ? "SET" : "MISSING", 
+      gsheetEmail: gsheetEmail ? "SET" : "MISSING", 
+      gsheetKey: gsheetKey ? "SET (" + gsheetKey.length + " chars)" : "MISSING" 
+    });
     
     if (hasLocalStorage) {
+      console.log("Attempting to save to Google Sheets...");
       const headers: Record<string, string> = {
         "x-gsheet-configured": "true",
         "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
@@ -166,6 +173,13 @@ export default function NewReservationModal({ config, onClose, onSaved }: Props)
         setError("Errore di connessione: " + String(e));
         return;
       }
+    } else {
+      console.log("Google Sheets not configured - missing:", {
+        id: !gsheetId,
+        email: !gsheetEmail,
+        key: !gsheetKey
+      });
+      alert("⚠️ Salvato solo localmente - Google Sheets non configurato. Vai in Impostazioni → Database per configurarlo.");
     }
     
     // Send email notification to business owner
