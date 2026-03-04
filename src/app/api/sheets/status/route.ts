@@ -32,6 +32,20 @@ export async function GET(request: Request) {
       private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
     };
   } else if (clientEmail && privateKey) {
+    // Verifica formato chiave privata
+    const hasBeginMarker = privateKey.includes("BEGIN PRIVATE KEY");
+    const hasEndMarker = privateKey.includes("END PRIVATE KEY");
+    const newlineCount = (privateKey.match(/\n/g) || []).length;
+    const escapedNewlineCount = (privateKey.match(/\\n/g) || []).length;
+    
+    console.log("[sheets/status] Private key analysis:");
+    console.log("  - Has BEGIN marker:", hasBeginMarker);
+    console.log("  - Has END marker:", hasEndMarker);
+    console.log("  - Actual newlines:", newlineCount);
+    console.log("  - Escaped newlines (\\n):", escapedNewlineCount);
+    console.log("  - First 100 chars:", privateKey.substring(0, 100));
+    console.log("  - Last 50 chars:", privateKey.substring(privateKey.length - 50));
+    
     credentials = {
       client_email: clientEmail,
       private_key: privateKey.replace(/\\n/g, "\n"),
@@ -64,13 +78,23 @@ export async function GET(request: Request) {
       message = "Google Sheets configurato e funzionante!";
     } catch (error: any) {
       console.error("Errore verifica Google Sheets:", error);
+      console.error("Error details:", {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       
       if (error.response?.status === 404) {
         message = "Foglio Google non trovato. Verifica l'ID del foglio.";
       } else if (error.response?.status === 403) {
         message = "Accesso negato. Assicurati di aver condiviso il foglio con il Service Account.";
+      } else if (error.message?.includes("invalid_grant")) {
+        message = "Credenziali non valide (invalid_grant). La chiave privata potrebbe essere scaduta o errata.";
       } else if (error.message?.includes("invalid")) {
         message = "Credenziali non valide. Controlla l'email e la chiave privata.";
+      } else if (error.message?.includes("header")) {
+        message = "Formato chiave privata errato. Assicurati di includere -----BEGIN/END PRIVATE KEY-----";
       } else {
         message = `Errore: ${error.message || "Impossibile connettersi a Google Sheets"}`;
       }
