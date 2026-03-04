@@ -142,6 +142,7 @@ export async function GET() {
 
 | Date | Changes |
 |------|---------|
+| 2026-03-04 | Added detailed debugging logs for Google Sheets credential verification |
 | 2026-03-03 | Fixed Google Sheets integration - credentials now passed via headers from client |
 | 2026-02-25 | Luxury salon booking page with FastAPI integration |
 | 2026-02-25 | Complete rebuild as multi-business admin platform |
