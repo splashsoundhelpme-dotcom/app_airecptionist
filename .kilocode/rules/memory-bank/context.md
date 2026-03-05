@@ -139,6 +139,7 @@ export async function GET() {
 ## Pending Improvements
 
 - [x] Fix Google Sheets integration - credentials now passed via headers from client
+- [x] Add debugging for Google Sheets credential verification errors
 - [ ] Real AI integration (OpenAI/Anthropic API for actual call/email handling)
 - [ ] Production API key configuration
 - [ ] Export reservations to CSV/PDF
@@ -148,6 +149,7 @@ export async function GET() {
 
 | Date | Changes |
 |------|---------|
+| 2026-03-05 | Added debugging for Google Sheets credential verification - now shows detailed error messages |
 | 2026-03-04 | Added full Google Sheets sync: PUT/DELETE APIs for update/delete reservations, with updateSheetRow() and deleteSheetRow() helpers |
 | 2026-03-04 | Added detailed debugging logs for Google Sheets credential verification |
 | 2026-03-03 | Fixed Google Sheets integration - credentials now passed via headers from client |
