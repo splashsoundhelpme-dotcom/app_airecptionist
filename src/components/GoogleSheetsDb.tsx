@@ -88,11 +88,13 @@ export default function GoogleSheetsDb({ onConfigured }: GoogleSheetsDbProps) {
       const testRes = await fetch("/api/sheets/status", { headers: testHeaders });
       const testData = await testRes.json();
       
+      console.log("[GoogleSheetsDb] Status response:", testData);
+      
       if (!testData.configured) {
         setStatus({
           configured: false,
           checking: false,
-          message: testData.message || "Credenziali non valide",
+          message: testData.message || testData.error || "Credenziali non valide",
         });
         return;
       }
@@ -108,11 +110,12 @@ export default function GoogleSheetsDb({ onConfigured }: GoogleSheetsDbProps) {
         message: "Configurazione salvata e verificata!",
       });
       onConfigured?.(true);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("[GoogleSheetsDb] Error testing credentials:", error);
       setStatus({
         configured: false,
         checking: false,
-        message: "Errore nella verifica delle credenziali",
+        message: error?.message || "Errore nella verifica delle credenziali",
       });
     }
   };

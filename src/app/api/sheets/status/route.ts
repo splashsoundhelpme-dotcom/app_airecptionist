@@ -98,6 +98,13 @@ export async function GET(request: Request) {
       } else {
         message = `Errore: ${error.message || "Impossibile connettersi a Google Sheets"}`;
       }
+      
+      return NextResponse.json({ 
+        configured,
+        spreadsheetId: effectiveSheetId || null,
+        message,
+        error: error.message || String(error)
+      }, { status: 500 });
     }
   } else if (hasCredentials && !hasSheetId) {
     message = "Service Account configurato ma manca l'ID del foglio";
