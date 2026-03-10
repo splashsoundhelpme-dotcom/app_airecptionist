@@ -129,11 +129,20 @@ export default function NewReservationModal({ config, onClose, onSaved }: Props)
     
     if (hasLocalStorage) {
       console.log("Attempting to save to Google Sheets...");
+      const storedKey = localStorage.getItem("gsheet_key") || "";
+      let encodedKey = "";
+      try {
+        const cleanKey = storedKey.trim().replace(/\r\n/g, "\n");
+        encodedKey = btoa(cleanKey);
+      } catch (e) {
+        console.error("Failed to encode key:", e);
+      }
+      
       const headers: Record<string, string> = {
         "x-gsheet-configured": "true",
         "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
         "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
-        "x-gsheet-key": btoa(localStorage.getItem("gsheet_key") || ""),
+        "x-gsheet-key": encodedKey,
       };
       
       // Format data for Google Sheets

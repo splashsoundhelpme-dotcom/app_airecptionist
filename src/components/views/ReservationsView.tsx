@@ -67,11 +67,20 @@ export default function ReservationsView({ config, reservations, onRefresh, onNe
     );
 
     if (hasLocalStorage) {
+      const storedKey = localStorage.getItem("gsheet_key") || "";
+      let encodedKey = "";
+      try {
+        const cleanKey = storedKey.trim().replace(/\r\n/g, "\n");
+        encodedKey = btoa(cleanKey);
+      } catch (e) {
+        console.error("Failed to encode key:", e);
+      }
+      
       const headers: Record<string, string> = {
         "x-gsheet-configured": "true",
         "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
         "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
-        "x-gsheet-key": btoa(localStorage.getItem("gsheet_key") || ""),
+        "x-gsheet-key": encodedKey,
       };
 
       const { date, time } = formatDateTime(reservation.dateTime);
@@ -123,11 +132,20 @@ export default function ReservationsView({ config, reservations, onRefresh, onNe
     );
 
     if (hasLocalStorage) {
+      const storedKey = localStorage.getItem("gsheet_key") || "";
+      let encodedKey = "";
+      try {
+        const cleanKey = storedKey.trim().replace(/\r\n/g, "\n");
+        encodedKey = btoa(cleanKey);
+      } catch (e) {
+        console.error("Failed to encode key:", e);
+      }
+      
       const headers: Record<string, string> = {
         "x-gsheet-configured": "true",
         "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
         "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
-        "x-gsheet-key": btoa(localStorage.getItem("gsheet_key") || ""),
+        "x-gsheet-key": encodedKey,
       };
 
       // Delete from Google Sheets

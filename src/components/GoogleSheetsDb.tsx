@@ -34,10 +34,15 @@ export default function GoogleSheetsDb({ onConfigured }: GoogleSheetsDbProps) {
         const headers: Record<string, string> = {};
         if (hasLocalStorage) {
           const storedKey = localStorage.getItem("gsheet_key") || "";
+          try {
+            const cleanKey = storedKey.trim().replace(/\r\n/g, "\n");
+            headers["x-gsheet-key"] = btoa(cleanKey);
+          } catch (e) {
+            console.error("[GoogleSheetsDb] Failed to encode stored key:", e);
+          }
           headers["x-gsheet-configured"] = "true";
           headers["x-gsheet-id"] = localStorage.getItem("gsheet_id") || "";
           headers["x-gsheet-email"] = localStorage.getItem("gsheet_email") || "";
-          headers["x-gsheet-key"] = btoa(storedKey);
         }
         
         const res = await fetch("/api/sheets/status", { headers });
@@ -79,7 +84,21 @@ export default function GoogleSheetsDb({ onConfigured }: GoogleSheetsDbProps) {
 
     // Test credentials by making an API call
     // Encode the private key to handle newlines/special characters in headers
-    const encodedPrivateKey = btoa(privateKey);
+    let encodedPrivateKey = "";
+    try {
+      // Trim whitespace and normalize newlines
+      const cleanKey = privateKey.trim().replace(/\r\n/g, "\n");
+      encodedPrivateKey = btoa(cleanKey);
+      console.log("[GoogleSheetsDb] Key encoded successfully, length:", encodedPrivateKey.length);
+    } catch (encodeError: any) {
+      console.error("[GoogleSheetsDb] btoa error:", encodeError);
+      setStatus({
+        configured: false,
+        checking: false,
+        message: "Errore nella codifica della chiave: " + (encodeError?.message || " chiave non valida"),
+      });
+      return;
+    }
     
     try {
       const testHeaders: Record<string, string> = {
