@@ -40,9 +40,17 @@ export function getAuth(headers?: Headers) {
       const keyFromHeader = headers.get("x-gsheet-key");
       console.log("[googleSheets getAuth] Header credentials:", emailFromHeader ? "SET" : "EMPTY", "| key:", keyFromHeader ? "SET (" + keyFromHeader.length + ")" : "EMPTY");
       if (emailFromHeader && keyFromHeader) {
+        // Decode Base64-encoded key
+        let decodedKey = "";
+        try {
+          decodedKey = atob(keyFromHeader);
+        } catch (e) {
+          console.log("[googleSheets getAuth] Failed to decode Base64, using raw:", e);
+          decodedKey = keyFromHeader;
+        }
         credentials = {
           client_email: emailFromHeader,
-          private_key: keyFromHeader.replace(/\\n/g, "\n"),
+          private_key: decodedKey.replace(/\\n/g, "\n"),
         };
       }
     }

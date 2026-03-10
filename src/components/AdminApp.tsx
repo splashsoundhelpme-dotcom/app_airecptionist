@@ -55,7 +55,7 @@ export default function AdminApp({ onLogout, onGoToSetup, onGoToPricing }: Props
           "x-gsheet-configured": "true",
           "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
           "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
-          "x-gsheet-key": localStorage.getItem("gsheet_key") || "",
+          "x-gsheet-key": btoa(localStorage.getItem("gsheet_key") || ""),
         };
         
         console.log("[AdminApp] Headers being sent:", {
@@ -99,7 +99,7 @@ export default function AdminApp({ onLogout, onGoToSetup, onGoToPricing }: Props
         "x-gsheet-configured": "true",
         "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
         "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
-        "x-gsheet-key": localStorage.getItem("gsheet_key") || "",
+        "x-gsheet-key": btoa(localStorage.getItem("gsheet_key") || ""),
       };
       
       try {

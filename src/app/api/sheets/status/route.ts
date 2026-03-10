@@ -32,23 +32,32 @@ export async function GET(request: Request) {
       private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
     };
   } else if (clientEmail && privateKey) {
+    // Decode the Base64-encoded private key
+    let decodedKey = "";
+    try {
+      decodedKey = atob(privateKey);
+    } catch (e) {
+      console.log("[sheets/status] Failed to decode Base64 key, trying as raw:", e);
+      decodedKey = privateKey;
+    }
+    
     // Verifica formato chiave privata
-    const hasBeginMarker = privateKey.includes("BEGIN PRIVATE KEY");
-    const hasEndMarker = privateKey.includes("END PRIVATE KEY");
-    const newlineCount = (privateKey.match(/\n/g) || []).length;
-    const escapedNewlineCount = (privateKey.match(/\\n/g) || []).length;
+    const hasBeginMarker = decodedKey.includes("BEGIN PRIVATE KEY");
+    const hasEndMarker = decodedKey.includes("END PRIVATE KEY");
+    const newlineCount = (decodedKey.match(/\n/g) || []).length;
+    const escapedNewlineCount = (decodedKey.match(/\\n/g) || []).length;
     
     console.log("[sheets/status] Private key analysis:");
     console.log("  - Has BEGIN marker:", hasBeginMarker);
     console.log("  - Has END marker:", hasEndMarker);
     console.log("  - Actual newlines:", newlineCount);
     console.log("  - Escaped newlines (\\n):", escapedNewlineCount);
-    console.log("  - First 100 chars:", privateKey.substring(0, 100));
-    console.log("  - Last 50 chars:", privateKey.substring(privateKey.length - 50));
+    console.log("  - First 100 chars:", decodedKey.substring(0, 100));
+    console.log("  - Last 50 chars:", decodedKey.substring(decodedKey.length - 50));
     
     credentials = {
       client_email: clientEmail,
-      private_key: privateKey.replace(/\\n/g, "\n"),
+      private_key: decodedKey.replace(/\\n/g, "\n"),
     };
   }
   

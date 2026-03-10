@@ -71,7 +71,7 @@ export default function ReservationsView({ config, reservations, onRefresh, onNe
         "x-gsheet-configured": "true",
         "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
         "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
-        "x-gsheet-key": localStorage.getItem("gsheet_key") || "",
+        "x-gsheet-key": btoa(localStorage.getItem("gsheet_key") || ""),
       };
 
       const { date, time } = formatDateTime(reservation.dateTime);
@@ -127,7 +127,7 @@ export default function ReservationsView({ config, reservations, onRefresh, onNe
         "x-gsheet-configured": "true",
         "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
         "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
-        "x-gsheet-key": localStorage.getItem("gsheet_key") || "",
+        "x-gsheet-key": btoa(localStorage.getItem("gsheet_key") || ""),
       };
 
       // Delete from Google Sheets

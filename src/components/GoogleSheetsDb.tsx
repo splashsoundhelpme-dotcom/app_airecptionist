@@ -30,13 +30,14 @@ export default function GoogleSheetsDb({ onConfigured }: GoogleSheetsDbProps) {
           localStorage.getItem("gsheet_key")
         );
         
-        // Build headers with localStorage values
+        // Build headers with localStorage values - encode private key for header safety
         const headers: Record<string, string> = {};
         if (hasLocalStorage) {
+          const storedKey = localStorage.getItem("gsheet_key") || "";
           headers["x-gsheet-configured"] = "true";
           headers["x-gsheet-id"] = localStorage.getItem("gsheet_id") || "";
           headers["x-gsheet-email"] = localStorage.getItem("gsheet_email") || "";
-          headers["x-gsheet-key"] = localStorage.getItem("gsheet_key") || "";
+          headers["x-gsheet-key"] = btoa(storedKey);
         }
         
         const res = await fetch("/api/sheets/status", { headers });
@@ -77,12 +78,15 @@ export default function GoogleSheetsDb({ onConfigured }: GoogleSheetsDbProps) {
     setStatus(prev => ({ ...prev, checking: true, message: "Salvataggio..." }));
 
     // Test credentials by making an API call
+    // Encode the private key to handle newlines/special characters in headers
+    const encodedPrivateKey = btoa(privateKey);
+    
     try {
       const testHeaders: Record<string, string> = {
         "x-gsheet-configured": "true",
         "x-gsheet-id": sheetId,
         "x-gsheet-email": serviceEmail,
-        "x-gsheet-key": privateKey,
+        "x-gsheet-key": encodedPrivateKey,
       };
       
       const testRes = await fetch("/api/sheets/status", { headers: testHeaders });
@@ -100,6 +104,7 @@ export default function GoogleSheetsDb({ onConfigured }: GoogleSheetsDbProps) {
       }
       
       // Salva la configurazione nel localStorage solo se le credenziali funzionano
+      // Store the original private key (not encoded) for display purposes
       localStorage.setItem("gsheet_id", sheetId);
       localStorage.setItem("gsheet_email", serviceEmail);
       localStorage.setItem("gsheet_key", privateKey);
