@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import type { BusinessConfig, ServiceItem, StaffMember } from "@/lib/types";
+import type { BusinessConfig, ServiceItem, StaffMember, TurnoConfig, TableConfig, TableZone } from "@/lib/types";
 import {
   saveConfig,
   DAYS_IT,
   DAYS_LABELS,
   DEFAULT_SERVICES,
+  DEFAULT_TURNI,
+  DEFAULT_TABLES,
+  DEFAULT_TABLE_ZONES,
   generateId,
 } from "@/lib/store";
 import ApiIntegrations from "@/components/ApiIntegrations";
@@ -18,7 +21,7 @@ interface Props {
   onGoToSetup: () => void;
 }
 
-type SettingsTab = "generale" | "orari" | "servizi" | "staff" | "notifiche" | "sicurezza" | "api";
+type SettingsTab = "generale" | "orari" | "turni" | "tavoli" | "servizi" | "staff" | "notifiche" | "sicurezza" | "api";
 
 export default function SettingsView({ config, onSave, onGoToSetup }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("generale");
@@ -43,6 +46,12 @@ export default function SettingsView({ config, onSave, onGoToSetup }: Props) {
   const tabs: { id: SettingsTab; label: string; icon: string }[] = [
     { id: "generale", label: "Generale", icon: "🏢" },
     { id: "orari", label: "Orari", icon: "🕐" },
+    ...(localConfig.businessType === "ristorante"
+      ? [
+          { id: "turni" as SettingsTab, label: "Turni", icon: "⏰" },
+          { id: "tavoli" as SettingsTab, label: "Tavoli", icon: "🪑" },
+        ]
+      : []),
     { id: "servizi", label: "Servizi", icon: "📋" },
     ...(localConfig.businessType !== "ristorante"
       ? [{ id: "staff" as SettingsTab, label: "Staff", icon: "👥" }]
@@ -338,6 +347,23 @@ export default function SettingsView({ config, onSave, onGoToSetup }: Props) {
                 );
               })}
             </div>
+          )}
+
+          {/* ── TURNI (ristorante) ─────────────────────────────── */}
+          {activeTab === "turni" && localConfig.businessType === "ristorante" && (
+            <TurniEditor
+              turni={localConfig.turni || []}
+              onChange={(turni) => update({ turni })}
+            />
+          )}
+
+          {/* ── TAVOLI (ristorante) ─────────────────────────────── */}
+          {activeTab === "tavoli" && localConfig.businessType === "ristorante" && (
+            <TavoliEditor
+              tables={localConfig.tables || []}
+              zones={localConfig.tableZones || []}
+              onChange={(tables, zones) => update({ tables, tableZones: zones })}
+            />
           )}
 
           {/* ── SERVIZI ──────────────────────────────────────────── */}
@@ -852,6 +878,430 @@ function StaffEditor({
               </button>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Turni Editor (Restaurant Shifts) ──────────────────────────
+const TURNI_COLORS = ["#f59e0b", "#8b5cf6", "#ec4899", "#10b981", "#ef4444", "#3b82f6"];
+
+function TurniEditor({
+  turni,
+  onChange,
+}: {
+  turni: TurnoConfig[];
+  onChange: (t: TurnoConfig[]) => void;
+}) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newTurno, setNewTurno] = useState<Partial<TurnoConfig>>({
+    name: "",
+    from: "12:00",
+    to: "15:00",
+    maxCovers: 30,
+    maxTables: 8,
+    lastOrderMinutes: 30,
+    bufferMinutes: 30,
+    active: true,
+    color: TURNI_COLORS[0],
+    days: [...DAYS_IT],
+  });
+
+  const addTurno = () => {
+    if (!newTurno.name) return;
+    const turno: TurnoConfig = {
+      id: generateId(),
+      name: newTurno.name,
+      from: newTurno.from || "12:00",
+      to: newTurno.to || "15:00",
+      maxCovers: newTurno.maxCovers || 30,
+      maxTables: newTurno.maxTables || 8,
+      lastOrderMinutes: newTurno.lastOrderMinutes || 30,
+      bufferMinutes: newTurno.bufferMinutes || 30,
+      active: true,
+      color: newTurno.color || TURNI_COLORS[0],
+      days: newTurno.days || [...DAYS_IT],
+    };
+    onChange([...turni, turno]);
+    setNewTurno({
+      name: "",
+      from: "12:00",
+      to: "15:00",
+      maxCovers: 30,
+      maxTables: 8,
+      lastOrderMinutes: 30,
+      bufferMinutes: 30,
+      active: true,
+      color: TURNI_COLORS[turni.length % TURNI_COLORS.length],
+      days: [...DAYS_IT],
+    });
+    setShowAdd(false);
+  };
+
+  const removeTurno = (id: string) => onChange(turni.filter((t) => t.id !== id));
+  const updateTurno = (id: string, updates: Partial<TurnoConfig>) =>
+    onChange(turni.map((t) => (t.id === id ? { ...t, ...updates } : t)));
+
+  const toggleDay = (turnoId: string, day: string) => {
+    const turno = turni.find((t) => t.id === turnoId);
+    if (!turno) return;
+    const days = turno.days.includes(day) ? turno.days.filter((d) => d !== day) : [...turno.days, day];
+    updateTurno(turnoId, { days });
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div>
+          <p style={{ fontSize: 14, color: "var(--text-muted)" }}>{turni.length} turni configurati</p>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+            Gestisci pranzo, cena e altri turni con capacità e giorni dedicati
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {turni.length === 0 && (
+            <button className="btn btn-secondary btn-sm" onClick={() => onChange([...DEFAULT_TURNI])}>
+              ↺ Ripristina default
+            </button>
+          )}
+          <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)}>+ Aggiungi turno</button>
+        </div>
+      </div>
+
+      {showAdd && (
+        <div className="card animate-fade-in" style={{ padding: 16, marginBottom: 16, border: "2px solid var(--primary)" }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: "var(--primary)", marginBottom: 12 }}>Nuovo turno</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <div>
+              <label className="form-label">Nome turno</label>
+              <input className="form-input" placeholder="es. Pranzo, Cena, Brunch" value={newTurno.name || ""} onChange={(e) => setNewTurno((p) => ({ ...p, name: e.target.value }))} />
+            </div>
+            <div>
+              <label className="form-label">Ora inizio</label>
+              <input className="form-input" type="time" value={newTurno.from || "12:00"} onChange={(e) => setNewTurno((p) => ({ ...p, from: e.target.value }))} />
+            </div>
+            <div>
+              <label className="form-label">Ora fine</label>
+              <input className="form-input" type="time" value={newTurno.to || "15:00"} onChange={(e) => setNewTurno((p) => ({ ...p, to: e.target.value }))} />
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <div>
+              <label className="form-label">Max coperti</label>
+              <input className="form-input" type="number" min={1} value={newTurno.maxCovers || 30} onChange={(e) => setNewTurno((p) => ({ ...p, maxCovers: parseInt(e.target.value) || 30 }))} />
+            </div>
+            <div>
+              <label className="form-label">Max tavoli</label>
+              <input className="form-input" type="number" min={1} value={newTurno.maxTables || 8} onChange={(e) => setNewTurno((p) => ({ ...p, maxTables: parseInt(e.target.value) || 8 }))} />
+            </div>
+            <div>
+              <label className="form-label">Buffer (min)</label>
+              <input className="form-input" type="number" min={0} value={newTurno.bufferMinutes || 30} onChange={(e) => setNewTurno((p) => ({ ...p, bufferMinutes: parseInt(e.target.value) || 30 }))} />
+            </div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label className="form-label">Giorni attivi</label>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {DAYS_IT.map((day) => (
+                <button key={day} onClick={() => {
+                  const days = newTurno.days?.includes(day) ? newTurno.days.filter((d) => d !== day) : [...(newTurno.days || []), day];
+                  setNewTurno((p) => ({ ...p, days }));
+                }} style={{
+                  padding: "4px 10px", borderRadius: 6, border: "1px solid",
+                  borderColor: newTurno.days?.includes(day) ? "var(--primary)" : "var(--border)",
+                  background: newTurno.days?.includes(day) ? "var(--primary-muted)" : "var(--surface)",
+                  color: newTurno.days?.includes(day) ? "var(--primary)" : "var(--text-muted)",
+                  fontSize: 12, fontWeight: 500, cursor: "pointer",
+                }}>
+                  {DAYS_LABELS[day].slice(0, 3)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-primary btn-sm" onClick={addTurno} disabled={!newTurno.name}>Aggiungi</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowAdd(false)}>Annulla</button>
+          </div>
+        </div>
+      )}
+
+      {/* Turni list */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {turni.map((turno) => (
+          <div key={turno.id} style={{
+            padding: "16px 20px", borderRadius: 12,
+            border: `2px solid ${turno.active ? turno.color : "var(--border)"}`,
+            background: turno.active ? `${turno.color}08` : "var(--surface)",
+            opacity: turno.active ? 1 : 0.6,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 12, height: 12, borderRadius: "50%", background: turno.color }} />
+                <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text)" }}>{turno.name}</span>
+                <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{turno.from} – {turno.to}</span>
+              </div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => updateTurno(turno.id, { active: !turno.active })} style={{ fontSize: 12 }}>
+                  {turno.active ? "🟢 Attivo" : "⚫ Disattivo"}
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setEditingId(editingId === turno.id ? null : turno.id)} style={{ padding: "4px 8px" }}>✏️</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => removeTurno(turno.id)} style={{ padding: "4px 8px", color: "var(--error)" }}>🗑️</button>
+              </div>
+            </div>
+
+            {editingId === turno.id ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: 11 }}>Nome</label>
+                    <input className="form-input" value={turno.name} onChange={(e) => updateTurno(turno.id, { name: e.target.value })} style={{ fontSize: 13 }} />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: 11 }}>Da</label>
+                    <input className="form-input" type="time" value={turno.from} onChange={(e) => updateTurno(turno.id, { from: e.target.value })} style={{ fontSize: 13 }} />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: 11 }}>A</label>
+                    <input className="form-input" type="time" value={turno.to} onChange={(e) => updateTurno(turno.id, { to: e.target.value })} style={{ fontSize: 13 }} />
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: 11 }}>Max coperti</label>
+                    <input className="form-input" type="number" value={turno.maxCovers} onChange={(e) => updateTurno(turno.id, { maxCovers: parseInt(e.target.value) || 0 })} style={{ fontSize: 13 }} />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: 11 }}>Max tavoli</label>
+                    <input className="form-input" type="number" value={turno.maxTables} onChange={(e) => updateTurno(turno.id, { maxTables: parseInt(e.target.value) || 0 })} style={{ fontSize: 13 }} />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: 11 }}>Ultimo ordine (min)</label>
+                    <input className="form-input" type="number" value={turno.lastOrderMinutes} onChange={(e) => updateTurno(turno.id, { lastOrderMinutes: parseInt(e.target.value) || 0 })} style={{ fontSize: 13 }} />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: 11 }}>Buffer (min)</label>
+                    <input className="form-input" type="number" value={turno.bufferMinutes} onChange={(e) => updateTurno(turno.id, { bufferMinutes: parseInt(e.target.value) || 0 })} style={{ fontSize: 13 }} />
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {DAYS_IT.map((day) => (
+                    <button key={day} onClick={() => toggleDay(turno.id, day)} style={{
+                      padding: "3px 8px", borderRadius: 5, border: "1px solid",
+                      borderColor: turno.days.includes(day) ? turno.color : "var(--border)",
+                      background: turno.days.includes(day) ? `${turno.color}15` : "var(--surface)",
+                      color: turno.days.includes(day) ? turno.color : "var(--text-muted)",
+                      fontSize: 11, fontWeight: 500, cursor: "pointer",
+                    }}>
+                      {DAYS_LABELS[day].slice(0, 3)}
+                    </button>
+                  ))}
+                </div>
+                <button className="btn btn-primary btn-sm" onClick={() => setEditingId(null)} style={{ alignSelf: "flex-start" }}>✓ Conferma</button>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 13, color: "var(--text-secondary)" }}>
+                <span>🪑 {turno.maxCovers} coperti max</span>
+                <span>📋 {turno.maxTables} tavoli max</span>
+                {turno.lastOrderMinutes > 0 && <span>⏱️ Ultimo ordine: {turno.lastOrderMinutes} min</span>}
+                {turno.bufferMinutes > 0 && <span>⏸️ Buffer: {turno.bufferMinutes} min</span>}
+                <span>📅 {turno.days.length === 7 ? "Tutti i giorni" : turno.days.map((d) => DAYS_LABELS[d].slice(0, 3)).join(", ")}</span>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Tavoli Editor (Table Management) ──────────────────────────
+function TavoliEditor({
+  tables,
+  zones,
+  onChange,
+}: {
+  tables: TableConfig[];
+  zones: TableZone[];
+  onChange: (tables: TableConfig[], zones: TableZone[]) => void;
+}) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [showZoneAdd, setShowZoneAdd] = useState(false);
+  const [newTable, setNewTable] = useState<Partial<TableConfig>>({ seats: 4, minSeats: 2, zone: "interno", isCombinable: true, isActive: true });
+  const [newZone, setNewZone] = useState<Partial<TableZone>>({ name: "", color: "#3b82f6", isOutdoor: false });
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const addTable = () => {
+    const table: TableConfig = {
+      id: generateId(),
+      number: newTable.number || tables.length + 1,
+      name: newTable.name,
+      seats: newTable.seats || 4,
+      minSeats: newTable.minSeats || 1,
+      zone: newTable.zone || "interno",
+      isCombinable: newTable.isCombinable ?? true,
+      isActive: true,
+      notes: newTable.notes,
+    };
+    onChange([...tables, table], zones);
+    setNewTable({ seats: 4, minSeats: 2, zone: "interno", isCombinable: true, isActive: true });
+    setShowAdd(false);
+  };
+
+  const addZone = () => {
+    if (!newZone.name) return;
+    const zone: TableZone = { id: generateId(), name: newZone.name, color: newZone.color || "#3b82f6", isOutdoor: newZone.isOutdoor || false };
+    onChange(tables, [...zones, zone]);
+    setNewZone({ name: "", color: "#3b82f6", isOutdoor: false });
+    setShowZoneAdd(false);
+  };
+
+  const removeTable = (id: string) => onChange(tables.filter((t) => t.id !== id), zones);
+  const updateTable = (id: string, updates: Partial<TableConfig>) =>
+    onChange(tables.map((t) => (t.id === id ? { ...t, ...updates } : t)), zones);
+  const removeZone = (id: string) => onChange(tables, zones.filter((z) => z.id !== id));
+
+  const activeZones = zones.length > 0 ? zones : DEFAULT_TABLE_ZONES;
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+        <div>
+          <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+            {tables.filter((t) => t.isActive).length} tavoli attivi in {activeZones.length} zone
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {tables.length === 0 && (
+            <button className="btn btn-secondary btn-sm" onClick={() => onChange(DEFAULT_TABLES, DEFAULT_TABLE_ZONES)}>↺ Ripristina default</button>
+          )}
+          <button className="btn btn-secondary btn-sm" onClick={() => setShowZoneAdd(true)}>+ Zona</button>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowAdd(true)}>+ Tavolo</button>
+        </div>
+      </div>
+
+      {showZoneAdd && (
+        <div className="card animate-fade-in" style={{ padding: 16, marginBottom: 16, border: "2px solid var(--primary)" }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: "var(--primary)", marginBottom: 12 }}>Nuova zona</p>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <input className="form-input" placeholder="Nome zona (es. Terrazza, VIP)" value={newZone.name || ""} onChange={(e) => setNewZone((p) => ({ ...p, name: e.target.value }))} />
+            <div>
+              <label className="form-label" style={{ fontSize: 11 }}>Colore</label>
+              <input type="color" value={newZone.color || "#3b82f6"} onChange={(e) => setNewZone((p) => ({ ...p, color: e.target.value }))} style={{ width: "100%", height: 38, border: "none", borderRadius: 6, cursor: "pointer" }} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label className="toggle">
+                <input type="checkbox" checked={newZone.isOutdoor || false} onChange={(e) => setNewZone((p) => ({ ...p, isOutdoor: e.target.checked }))} />
+                <span className="toggle-slider" />
+              </label>
+              <span style={{ fontSize: 13 }}>Esterno</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-primary btn-sm" onClick={addZone} disabled={!newZone.name}>Aggiungi</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowZoneAdd(false)}>Annulla</button>
+          </div>
+        </div>
+      )}
+
+      {showAdd && (
+        <div className="card animate-fade-in" style={{ padding: 16, marginBottom: 16, border: "2px solid var(--primary)" }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: "var(--primary)", marginBottom: 12 }}>Nuovo tavolo</p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <div>
+              <label className="form-label" style={{ fontSize: 11 }}>Numero</label>
+              <input className="form-input" type="number" min={1} value={newTable.number || tables.length + 1} onChange={(e) => setNewTable((p) => ({ ...p, number: parseInt(e.target.value) }))} />
+            </div>
+            <div>
+              <label className="form-label" style={{ fontSize: 11 }}>Posti</label>
+              <input className="form-input" type="number" min={1} value={newTable.seats || 4} onChange={(e) => setNewTable((p) => ({ ...p, seats: parseInt(e.target.value) }))} />
+            </div>
+            <div>
+              <label className="form-label" style={{ fontSize: 11 }}>Min. posti</label>
+              <input className="form-input" type="number" min={1} value={newTable.minSeats || 1} onChange={(e) => setNewTable((p) => ({ ...p, minSeats: parseInt(e.target.value) }))} />
+            </div>
+            <div>
+              <label className="form-label" style={{ fontSize: 11 }}>Zona</label>
+              <select className="form-input" value={newTable.zone || "interno"} onChange={(e) => setNewTable((p) => ({ ...p, zone: e.target.value }))}>
+                {activeZones.map((z) => <option key={z.id} value={z.name.toLowerCase()}>{z.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10, marginBottom: 12 }}>
+            <div>
+              <label className="form-label" style={{ fontSize: 11 }}>Nome opzionale</label>
+              <input className="form-input" placeholder="es. Tavolo Rosso" value={newTable.name || ""} onChange={(e) => setNewTable((p) => ({ ...p, name: e.target.value }))} />
+            </div>
+            <div>
+              <label className="form-label" style={{ fontSize: 11 }}>Note</label>
+              <input className="form-input" placeholder="es. Vista mare" value={newTable.notes || ""} onChange={(e) => setNewTable((p) => ({ ...p, notes: e.target.value }))} />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button className="btn btn-primary btn-sm" onClick={addTable}>Aggiungi</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setShowAdd(false)}>Annulla</button>
+          </div>
+        </div>
+      )}
+
+      {/* Zone tags */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        {activeZones.map((zone) => {
+          const count = tables.filter((t) => t.zone.toLowerCase() === zone.name.toLowerCase()).length;
+          return (
+            <div key={zone.id} style={{ padding: "8px 14px", borderRadius: 8, border: `1.5px solid ${zone.color}40`, background: `${zone.color}08`, display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: zone.color }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{zone.name}</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{count} tavoli</span>
+              {zone.isOutdoor && <span style={{ fontSize: 11 }}>🌿</span>}
+              <button className="btn btn-ghost btn-sm" onClick={() => removeZone(zone.id)} style={{ padding: "2px 4px", fontSize: 10, color: "var(--error)" }}>✕</button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Tables by zone */}
+      {activeZones.map((zone) => {
+        const zoneTables = tables.filter((t) => t.zone.toLowerCase() === zone.name.toLowerCase());
+        if (zoneTables.length === 0) return null;
+        return (
+          <div key={zone.id} style={{ marginBottom: 20 }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: zone.color, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+              {zone.name} {zone.isOutdoor ? "🌿" : ""}
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 8 }}>
+              {zoneTables.map((table) => (
+                <div key={table.id} onClick={() => setEditingId(editingId === table.id ? null : table.id)} style={{
+                  padding: "10px 12px", borderRadius: 10,
+                  border: `1.5px solid ${table.isActive ? zone.color + "40" : "var(--border)"}`,
+                  background: table.isActive ? "var(--surface-2)" : "var(--surface)",
+                  opacity: table.isActive ? 1 : 0.5, cursor: "pointer",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>#{table.number}</span>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{table.seats} 👤</span>
+                  </div>
+                  {table.name && <p style={{ fontSize: 11, color: "var(--text-muted)" }}>{table.name}</p>}
+                  {table.notes && <p style={{ fontSize: 10, color: "var(--text-muted)", fontStyle: "italic" }}>{table.notes}</p>}
+                  {editingId === table.id && (
+                    <div style={{ marginTop: 8, display: "flex", gap: 4 }}>
+                      <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); updateTable(table.id, { isActive: !table.isActive }); }} style={{ padding: "2px 6px", fontSize: 11 }}>
+                        {table.isActive ? "🟢" : "⚫"}
+                      </button>
+                      <button className="btn btn-ghost btn-sm" onClick={(e) => { e.stopPropagation(); removeTable(table.id); }} style={{ padding: "2px 6px", fontSize: 11, color: "var(--error)" }}>🗑️</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {tables.length === 0 && (
+        <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-muted)" }}>
+          <p style={{ fontSize: 14 }}>Nessun tavolo configurato.</p>
         </div>
       )}
     </div>

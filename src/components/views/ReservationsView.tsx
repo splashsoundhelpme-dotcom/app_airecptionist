@@ -8,6 +8,7 @@ import {
   CHANNEL_LABELS,
   saveReservations,
   getReservations,
+  getTurnoById,
 } from "@/lib/store";
 
 interface Props {
@@ -23,14 +24,19 @@ type FilterChannel = "tutti" | string;
 export default function ReservationsView({ config, reservations, onRefresh, onNewReservation }: Props) {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("tutti");
   const [filterChannel, setFilterChannel] = useState<FilterChannel>("tutti");
+  const [filterTurno, setFilterTurno] = useState<string>("tutti");
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"date" | "name" | "status">("date");
+
+  const isRistorante = config.businessType === "ristorante";
+  const turni = config.turni || [];
 
   const filtered = reservations
     .filter((r) => {
       if (filterStatus !== "tutti" && r.status !== filterStatus) return false;
       if (filterChannel !== "tutti" && r.channel !== filterChannel) return false;
+      if (filterTurno !== "tutti" && r.turnoId !== filterTurno) return false;
       if (search) {
         const q = search.toLowerCase();
         return (
@@ -235,6 +241,21 @@ export default function ReservationsView({ config, reservations, onRefresh, onNe
             ))}
           </select>
 
+          {/* Turno filter (restaurant only) */}
+          {isRistorante && turni.length > 0 && (
+            <select
+              className="form-input"
+              value={filterTurno}
+              onChange={(e) => setFilterTurno(e.target.value)}
+              style={{ width: "auto", fontSize: 13, padding: "8px 12px" }}
+            >
+              <option value="tutti">Tutti i turni</option>
+              {turni.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          )}
+
           {/* Sort */}
           <select
             className="form-input"
@@ -271,7 +292,8 @@ export default function ReservationsView({ config, reservations, onRefresh, onNe
                 <th>Servizio</th>
                 <th>Data & Ora</th>
                 <th>Canale</th>
-                {config.businessType === "ristorante" && <th>Coperti</th>}
+                {isRistorante && <th>Coperti</th>}
+                {isRistorante && <th>Turno</th>}
                 <th>Stato</th>
                 <th>Azioni</th>
               </tr>
@@ -329,6 +351,16 @@ export default function ReservationsView({ config, reservations, onRefresh, onNe
                           <span style={{ fontSize: 13 }}>
                             {r.covers ? `${r.covers} 🪑` : "—"}
                           </span>
+                        </td>
+                      )}
+                      {isRistorante && (
+                        <td>
+                          {r.turnoId && config.turni ? (
+                            <span style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 4 }}>
+                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: getTurnoById(config.turni, r.turnoId)?.color || "#94a3b8", display: "inline-block" }} />
+                              {getTurnoById(config.turni, r.turnoId)?.name || "—"}
+                            </span>
+                          ) : "—"}
                         </td>
                       )}
                       <td>

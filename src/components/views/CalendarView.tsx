@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { BusinessConfig, Reservation } from "@/lib/types";
-import { STATUS_CONFIG, CHANNEL_LABELS } from "@/lib/store";
+import { STATUS_CONFIG, CHANNEL_LABELS, getTurnoForDateTime, getCoversInTurno } from "@/lib/store";
 
 interface Props {
   config: BusinessConfig;
@@ -308,48 +308,51 @@ export default function CalendarView({ config, reservations }: Props) {
               </div>
             )}
 
-            {/* Restaurant capacity */}
-            {config.businessType === "ristorante" && selectedDayRes.length > 0 && (
-              <div
-                style={{
-                  marginTop: 16,
-                  padding: 14,
-                  borderRadius: 10,
-                  background: "var(--restaurant-bg)",
-                  border: "1px solid rgba(234,88,12,0.15)",
-                }}
-              >
-                <p style={{ fontSize: 13, fontWeight: 600, color: "var(--restaurant)", marginBottom: 6 }}>
-                  🍽️ Coperti del giorno
-                </p>
+            {/* Restaurant capacity - per turno */}
+            {config.businessType === "ristorante" && config.turni && config.turni.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                {config.turni.filter((t) => t.active).map((turno) => {
+                  const dayDate = new Date(year, month, selectedDay!);
+                  const coversInTurno = getCoversInTurno(reservations, turno.id, dayDate.toISOString());
+                  const pct = Math.min((coversInTurno / turno.maxCovers) * 100, 100);
+                  const isFull = coversInTurno >= turno.maxCovers;
+                  return (
+                    <div key={turno.id} style={{
+                      padding: 12, borderRadius: 10,
+                      background: `${turno.color}08`,
+                      border: `1px solid ${turno.color}25`,
+                      marginBottom: 8,
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: turno.color }} />
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{turno.name}</span>
+                          <span style={{ fontSize: 11, color: "var(--text-muted)" }}>{turno.from}–{turno.to}</span>
+                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: isFull ? "var(--error)" : turno.color }}>
+                          {coversInTurno}/{turno.maxCovers} 🪑
+                        </span>
+                      </div>
+                      <div style={{ height: 6, borderRadius: 99, background: `${turno.color}20`, overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${pct}%`, background: isFull ? "var(--error)" : turno.color, borderRadius: 99, transition: "width 0.3s" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {/* General capacity for non-restaurant or fallback */}
+            {config.businessType === "ristorante" && (!config.turni || config.turni.length === 0) && selectedDayRes.length > 0 && (
+              <div style={{ marginTop: 16, padding: 14, borderRadius: 10, background: "var(--restaurant-bg)", border: "1px solid rgba(234,88,12,0.15)" }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "var(--restaurant)", marginBottom: 6 }}>🍽️ Coperti del giorno</p>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
                   <span style={{ color: "var(--text-secondary)" }}>Prenotati</span>
                   <span style={{ fontWeight: 700, color: "var(--restaurant)" }}>
                     {selectedDayRes.reduce((sum, r) => sum + (r.covers || 0), 0)} / {config.maxCovers || "∞"}
                   </span>
                 </div>
-                <div
-                  style={{
-                    height: 6,
-                    borderRadius: 99,
-                    background: "rgba(234,88,12,0.15)",
-                    marginTop: 8,
-                    overflow: "hidden",
-                  }}
-                >
-                  <div
-                    style={{
-                      height: "100%",
-                      width: `${Math.min(
-                        (selectedDayRes.reduce((sum, r) => sum + (r.covers || 0), 0) /
-                          (config.maxCovers || 1)) *
-                          100,
-                        100
-                      )}%`,
-                      background: "var(--restaurant)",
-                      borderRadius: 99,
-                    }}
-                  />
+                <div style={{ height: 6, borderRadius: 99, background: "rgba(234,88,12,0.15)", marginTop: 8, overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${Math.min((selectedDayRes.reduce((sum, r) => sum + (r.covers || 0), 0) / (config.maxCovers || 1)) * 100, 100)}%`, background: "var(--restaurant)", borderRadius: 99 }} />
                 </div>
               </div>
             )}

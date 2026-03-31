@@ -6,6 +6,10 @@ import {
   STATUS_CONFIG,
   CHANNEL_LABELS,
   BUSINESS_LABELS,
+  getWeeklyTrend,
+  getAverageRating,
+  formatCurrency,
+  getTurnoForDateTime,
 } from "@/lib/store";
 
 interface Props {
@@ -346,6 +350,64 @@ export default function DashboardView({ config, reservations, onNewReservation, 
           )}
         </div>
       </div>
+
+      {/* Weekly trend */}
+      <div className="card" style={{ padding: 20 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", marginBottom: 16 }}>
+          📊 Andamento settimanale
+        </h3>
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 120 }}>
+          {getWeeklyTrend(reservations).map((day, i) => {
+            const maxRes = Math.max(...getWeeklyTrend(reservations).map((d) => d.reservations), 1);
+            const height = (day.reservations / maxRes) * 100;
+            return (
+              <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>{day.reservations}</span>
+                <div style={{ width: "100%", height: `${Math.max(height, 4)}%`, minHeight: 4, background: "var(--primary)", borderRadius: 6, transition: "height 0.3s" }} />
+                <span style={{ fontSize: 11, color: "var(--text-muted)", textTransform: "capitalize" }}>{day.day}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Restaurant turno stats */}
+      {config.businessType === "ristorante" && config.turni && config.turni.length > 0 && (
+        <div className="card" style={{ padding: 20 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--text)", marginBottom: 16 }}>
+            ⏰ Capacità turni oggi
+          </h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+            {config.turni.filter((t) => t.active).map((turno) => {
+              const coversToday = todayRes
+                .filter((r) => r.turnoId === turno.id && r.status !== "cancellata")
+                .reduce((s, r) => s + (r.covers || 0), 0);
+              const pct = Math.min((coversToday / turno.maxCovers) * 100, 100);
+              const isFull = coversToday >= turno.maxCovers;
+              return (
+                <div key={turno.id} style={{
+                  padding: 14, borderRadius: 10,
+                  border: `1.5px solid ${turno.color}30`,
+                  background: `${turno.color}06`,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: turno.color }} />
+                    <span style={{ fontWeight: 600, fontSize: 14, color: "var(--text)" }}>{turno.name}</span>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{turno.from}–{turno.to}</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontSize: 20, fontWeight: 700, color: isFull ? "var(--error)" : turno.color }}>{coversToday}</span>
+                    <span style={{ fontSize: 13, color: "var(--text-muted)" }}>/ {turno.maxCovers} coperti</span>
+                  </div>
+                  <div style={{ height: 6, borderRadius: 99, background: `${turno.color}20`, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${pct}%`, background: isFull ? "var(--error)" : turno.color, borderRadius: 99, transition: "width 0.3s" }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Pending reservations alert */}
       {pending.length > 0 && (

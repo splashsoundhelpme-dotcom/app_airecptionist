@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { BusinessConfig, Reservation, ReservationChannel } from "@/lib/types";
-import { getReservations, saveReservations, generateId, formatDateTime } from "@/lib/store";
+import { getReservations, saveReservations, generateId, formatDateTime, DAYS_IT, getActiveTurniForDay, getAvailableTables } from "@/lib/store";
 
 interface Props {
   config: BusinessConfig;
@@ -71,6 +71,8 @@ export default function NewReservationModal({ config, onClose, onSaved }: Props)
     duration: "",
     covers: "",
     tableNumber: "",
+    tableIds: [] as string[],
+    turnoId: "",
     channel: "manuale" as ReservationChannel,
     notes: "",
     staffId: "",
@@ -104,6 +106,8 @@ export default function NewReservationModal({ config, onClose, onSaved }: Props)
       duration: form.duration ? parseInt(form.duration) : undefined,
       covers: form.covers ? parseInt(form.covers) : undefined,
       tableNumber: form.tableNumber ? parseInt(form.tableNumber) : undefined,
+      tableIds: form.tableIds.length > 0 ? form.tableIds : undefined,
+      turnoId: form.turnoId || undefined,
       channel: form.channel,
       status: "confermata",
       notes: form.notes.trim() || undefined,
@@ -344,6 +348,112 @@ export default function NewReservationModal({ config, onClose, onSaved }: Props)
               </select>
             </div>
           </div>
+
+          {/* Turno selector for restaurants */}
+          {config.businessType === "ristorante" && config.turni && config.turni.length > 0 && form.dateTime && (
+            <div style={{ marginTop: 16 }}>
+              <label className="form-label">Turno</label>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {(() => {
+                  const d = new Date(form.dateTime);
+                  const dayIndex = d.getDay();
+                  const dayName = DAYS_IT[dayIndex === 0 ? 6 : dayIndex - 1];
+                  const activeTurni = getActiveTurniForDay(config.turni!, dayName);
+                  if (activeTurni.length === 0) return <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Nessun turno attivo per questo giorno</p>;
+                  return activeTurni.map((turno) => {
+                    const allRes = getReservations();
+                    const coversInTurno = allRes
+                      .filter((r) => new Date(r.dateTime).toDateString() === d.toDateString() && r.turnoId === turno.id && r.status !== "cancellata")
+                      .reduce((s, r) => s + (r.covers || 0), 0);
+                    const available = turno.maxCovers - coversInTurno;
+                    return (
+                      <button
+                        key={turno.id}
+                        onClick={() => update("turnoId", turno.id)}
+                        style={{
+                          padding: "10px 16px",
+                          borderRadius: 10,
+                          border: `2px solid ${form.turnoId === turno.id ? turno.color : "var(--border)"}`,
+                          background: form.turnoId === turno.id ? `${turno.color}15` : "var(--surface)",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          minWidth: 140,
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: turno.color }} />
+                          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{turno.name}</span>
+                        </div>
+                        <p style={{ fontSize: 12, color: "var(--text-muted)" }}>{turno.from} – {turno.to}</p>
+                        <p style={{ fontSize: 11, color: available > 0 ? "var(--success)" : "var(--error)", marginTop: 2 }}>
+                          {available > 0 ? `${available} coperti disponibili` : "Completo"}
+                        </p>
+                      </button>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* Table selector for restaurants */}
+          {config.businessType === "ristorante" && config.tables && config.tables.length > 0 && form.turnoId && form.dateTime && (
+            <div style={{ marginTop: 16 }}>
+              <label className="form-label">Tavolo</label>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {(() => {
+                  const d = new Date(form.dateTime);
+                  const covers = parseInt(form.covers) || 1;
+                  const available = getAvailableTables(config.tables!, getReservations(), form.turnoId, d.toISOString(), covers);
+                  const occupied = config.tables!.filter((t) => !available.find((a) => a.id === t.id) && t.isActive);
+                  return (
+                    <>
+                      {available.map((table) => (
+                        <button
+                          key={table.id}
+                          onClick={() => {
+                            const newIds = form.tableIds.includes(table.id)
+                              ? form.tableIds.filter((id) => id !== table.id)
+                              : [...form.tableIds, table.id];
+                            setForm((prev) => ({ ...prev, tableIds: newIds, tableNumber: String(table.number) }));
+                          }}
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 8,
+                            border: `1.5px solid ${form.tableIds.includes(table.id) ? "var(--primary)" : "var(--border)"}`,
+                            background: form.tableIds.includes(table.id) ? "var(--primary-muted)" : "var(--surface)",
+                            cursor: "pointer",
+                            fontSize: 13,
+                          }}
+                        >
+                          <span style={{ fontWeight: 600 }}>#{table.number}</span>
+                          <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>{table.seats} 👤</span>
+                          {table.name && <span style={{ fontSize: 11, color: "var(--text-muted)", marginLeft: 4 }}>({table.name})</span>}
+                        </button>
+                      ))}
+                      {occupied.map((table) => (
+                        <div
+                          key={table.id}
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 8,
+                            border: "1.5px solid var(--border)",
+                            background: "var(--surface)",
+                            opacity: 0.4,
+                            fontSize: 13,
+                            cursor: "not-allowed",
+                          }}
+                        >
+                          <span style={{ fontWeight: 600 }}>#{table.number}</span>
+                          <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>Occupato</span>
+                        </div>
+                      ))}
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
 
           {staff.length > 0 && (
             <div style={{ marginTop: 16 }}>

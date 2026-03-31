@@ -15,25 +15,47 @@ Complete admin platform for hairdressers, beauty salons, and restaurants with su
 - [x] Memory bank documentation
 - [x] Recipe system for common features
 - [x] **Multi-business admin platform** (complete rebuild)
-  - LoginGate: PIN auth with lockout after 5 failed attempts
-  - SetupWizard: 5-step onboarding (business type, info, hours, AI config, security)
-  - AdminApp: sidebar navigation with 5 views
-  - DashboardView: stats, upcoming reservations, channel breakdown, AI summary
-  - ReservationsView: full table with search/filter/sort, detail panel, status management
-  - CalendarView: monthly calendar with day detail, restaurant capacity bar
-  - AiAssistantView: chat interface, activity log, AI config panel
-  - SettingsView: general, hours, services editor, staff editor, notifications, security
-  - NewReservationModal: full form with service selector, staff assignment, channel picker
-  - **Subscription system**: PricingPlans component with 3-day trial, monthly (€199.99), annual (€1999.99) plans with fake discounts
-  - **API integrations**: ApiIntegrations component for Twilio (phone), SendGrid (email), WhatsApp Business API
-  - Shared types (src/lib/types.ts) and store (src/lib/store.ts) with localStorage persistence
-  - Admin design system (globals.css): neutral blue/slate palette, sidebar layout, tables, badges
-- [x] **Google Sheets full sync**: create, update, delete reservations sync to Google Sheets
-  - POST /api/sheets/reservations: create new reservation
-  - PUT /api/sheets/reservations: update existing reservation by ID
-  - DELETE /api/sheets/reservations: delete reservation by ID
-  - updateSheetRow() and deleteSheetRow() helpers in googleSheets.ts
-  - ReservationsView calls PUT/DELETE APIs when modifying/deleting reservations
+- [x] **Restaurant Turni (Shifts) System** - FULL
+  - TurnoConfig type with name, time range, max covers/tables, buffer time, active days, color
+  - TurniEditor in SettingsView: add/edit/delete shifts, configure per-day availability
+  - Default turni: Pranzo (12-15) and Cena (19-23)
+  - NewReservationModal: turno selector shows available covers per shift
+  - ReservationsView: turno column + turno filter dropdown
+  - CalendarView: per-turno capacity bars per day
+  - DashboardView: turno capacity stats for today
+- [x] **Table Management (Tavoli) System** - FULL
+  - TableConfig type with number, seats, min seats, zone, combinable, notes
+  - TableZone type for grouping tables (interno, esterno, VIP)
+  - TavoliEditor in SettingsView: add/edit/delete tables, manage zones
+  - Default 10 tables across 3 zones
+  - NewReservationModal: table selector showing available tables per turno
+- [x] **Client CRM System** - FULL
+  - Client type with contact info, visit history, loyalty points/tier, tags, allergies
+  - ClientsView: search, filter by tier, sort by name/visits/spending, detail panel
+  - Auto-tagging: VIP (10+ visits), abituale (3+ visits)
+  - Loyalty tiers: Bronzo, Argento, Oro, Platino
+  - Store helpers: findOrCreateClient, updateClientStats, addLoyaltyPoints
+- [x] **Reports & Analytics** - FULL
+  - ReportsView with 4 tabs: Panoramica, Servizi, Orari, Esporta
+  - Service popularity analysis, hourly distribution, weekly trends
+  - Export to CSV: reservations and clients
+  - Analytics helpers: calculateDayAnalytics, calculateStaffPerformance, calculateServicePopularity, calculateHourlyDistribution, getWeeklyTrend, getMonthlyRevenue
+- [x] **Enhanced Types** - 40+ new interfaces
+  - TurnoConfig, TableConfig, TableZone, MenuItem, Client, Review, WaitlistEntry, BlackoutDate, SpecialEvent, RecurringReservation, LoyaltyReward, LoyaltyTransaction
+  - DayAnalytics, StaffPerformance, ServicePopularity, HourlyDistribution
+- [x] **Enhanced Store** - 50+ helper functions
+  - Turni helpers: getActiveTurniForDay, getTurnoById, getTurnoForDateTime, getCoversInTurno, getTablesInTurno, getAvailableTables
+  - Client helpers: getClients, saveClients, findOrCreateClient, updateClientStats
+  - Export: exportReservationsCSV, exportClientsCSV, downloadCSV
+  - Notifications: addNotification helper
+  - Blackout dates: isDateBlackedOut with recurring support
+- [x] **Settings Enhancements**
+  - New tabs: Turni (shifts), Tavoli (tables) for restaurants
+  - PIVA/Codice Fiscale fields, cuisine type, price range
+  - Online booking config, cancellation policy, no-show policy
+  - AI auto-confirm, greeting message
+  - Loyalty program toggle, reviews toggle, waitlist toggle
+  - Notification before appointment timing
 
 ## Current Structure
 
@@ -60,7 +82,9 @@ Complete admin platform for hairdressers, beauty salons, and restaurants with su
 | `src/components/views/ReservationsView.tsx` | Reservations table | ✅ Ready |
 | `src/components/views/CalendarView.tsx` | Monthly calendar | ✅ Ready |
 | `src/components/views/AiAssistantView.tsx` | AI chat + activity | ✅ Ready |
-| `src/components/views/SettingsView.tsx` | Settings panel | ✅ Ready |
+| `src/components/views/SettingsView.tsx` | Settings panel (turni/tavoli for ristorante) | ✅ Ready |
+| `src/components/views/ClientsView.tsx` | Client CRM | ✅ Ready |
+| `src/components/views/ReportsView.tsx` | Analytics & Export | ✅ Ready |
 | `.kilocode/` | AI context & recipes | ✅ Ready |
 
 ## Current Focus
@@ -140,15 +164,21 @@ export async function GET() {
 
 - [x] Fix Google Sheets integration - credentials now passed via headers from client
 - [x] Add debugging for Google Sheets credential verification errors
-- [ ] Real AI integration (OpenAI/Anthropic API for actual call/email handling)
+- [x] Export reservations to CSV
+- [ ] Real AI integration (OpenAI/Anthropic/Gemini API for actual call/email handling)
 - [ ] Production API key configuration
-- [ ] Export reservations to CSV/PDF
 - [ ] Multi-user staff accounts
+- [ ] Waitlist UI component
+- [ ] Blackout dates management UI
+- [ ] Special events management UI
+- [ ] Review system UI
+- [ ] Recurring reservations generation
 
 ## Session History
 
 | Date | Changes |
 |------|---------|
+| 2026-03-31 | **Major feature expansion**: Restaurant turni system, table management, client CRM, reports/analytics, export CSV. Added 40+ types, 50+ store helpers. New views: ClientsView, ReportsView. Enhanced all existing views with shift support. |
 | 2026-03-05 | Added debugging for Google Sheets credential verification - now shows detailed error messages |
 | 2026-03-04 | Added full Google Sheets sync: PUT/DELETE APIs for update/delete reservations, with updateSheetRow() and deleteSheetRow() helpers |
 | 2026-03-04 | Added detailed debugging logs for Google Sheets credential verification |
