@@ -2,11 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 
 const VAPI_BASE = "https://api.vapi.ai";
 
-async function vapiRequest(apiKey: string, method: string, path: string, body?: unknown) {
+function getApiKey(): string {
+  const key = process.env.VAPI_API_KEY;
+  if (!key) throw new Error("VAPI_API_KEY non configurata nel .env");
+  return key;
+}
+
+function getPhoneId(): string {
+  const id = process.env.VAPI_PHONE_NUMBER_ID;
+  if (!id) throw new Error("VAPI_PHONE_NUMBER_ID non configurata nel .env");
+  return id;
+}
+
+async function vapiRequest(method: string, path: string, body?: unknown) {
   const res = await fetch(`${VAPI_BASE}${path}`, {
     method,
     headers: {
-      "Authorization": `Bearer ${apiKey}`,
+      "Authorization": `Bearer ${getApiKey()}`,
       "Content-Type": "application/json",
     },
     body: body ? JSON.stringify(body) : undefined,
@@ -54,17 +66,13 @@ Rispondi sempre in italiano. Sii conciso nelle risposte vocali.`;
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { action, apiKey } = body;
-
-    if (!apiKey) {
-      return NextResponse.json({ success: false, error: "API key mancante" }, { status: 400 });
-    }
+    const { action } = body;
 
     if (action === "create_assistant") {
       const { config } = body;
       const systemPrompt = buildSystemPrompt(config);
 
-      const assistant = await vapiRequest(apiKey, "POST", "/assistant", {
+      const assistant = await vapiRequest("POST", "/assistant", {
         name: `${config.businessName || "Assistente"} AI`,
         model: {
           provider: "openai",
@@ -91,14 +99,14 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "make_call") {
-      const { phoneNumberId, assistantId, customerNumber } = body;
+      const { assistantId, customerNumber } = body;
 
-      if (!phoneNumberId || !assistantId || !customerNumber) {
+      if (!assistantId || !customerNumber) {
         return NextResponse.json({ success: false, error: "Parametri mancanti" }, { status: 400 });
       }
 
-      const call = await vapiRequest(apiKey, "POST", "/call", {
-        phoneNumberId,
+      const call = await vapiRequest("POST", "/call", {
+        phoneNumberId: getPhoneId(),
         assistantId,
         customer: { number: customerNumber },
       });
@@ -107,19 +115,25 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "list_assistants") {
-      const assistants = await vapiRequest(apiKey, "GET", "/assistant");
+      const assistants = await vapiRequest("GET", "/assistant");
       return NextResponse.json({ success: true, assistants });
     }
 
     if (action === "list_phone_numbers") {
-      const numbers = await vapiRequest(apiKey, "GET", "/phone-number");
+      const numbers = await vapiRequest("GET", "/phone-number");
       return NextResponse.json({ success: true, numbers });
     }
 
     if (action === "get_call") {
       const { callId } = body;
-      const call = await vapiRequest(apiKey, "GET", `/call/${callId}`);
+      const call = await vapiRequest("GET", `/call/${callId}`);
       return NextResponse.json({ success: true, call });
+    }
+
+    if (action === "status") {
+      const hasKey = !!process.env.VAPI_API_KEY;
+      const hasPhone = !!process.env.VAPI_PHONE_NUMBER_ID;
+      return NextResponse.json({ success: true, configured: hasKey && hasPhone, hasKey, hasPhone });
     }
 
     return NextResponse.json({ success: false, error: "Azione non riconosciuta" }, { status: 400 });
