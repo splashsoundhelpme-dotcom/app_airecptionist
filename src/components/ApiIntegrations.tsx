@@ -330,7 +330,7 @@ export default function ApiIntegrations({ config, onSave }: ApiIntegrationsProps
         </div>
       )}
       
-      {/* Phone Integration */}
+      {/* Phone Integration (Vapi AI) */}
       <div className="card" style={{ padding: 20 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -348,10 +348,10 @@ export default function ApiIntegrations({ config, onSave }: ApiIntegrationsProps
             </div>
             <div>
               <h4 style={{ fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>
-                Chiamate Telefoniche
+                Chiamate Telefoniche AI
               </h4>
               <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                Twilio - €0.01/min (demo gratuito)
+                Vapi AI — Telefonia + AI + Voce in un&apos;unica API (~$0.05/min)
               </p>
             </div>
           </div>
@@ -387,24 +387,81 @@ export default function ApiIntegrations({ config, onSave }: ApiIntegrationsProps
           <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
             <div style={{ display: "grid", gap: 12 }}>
               <div>
-                <label className="form-label">Numero di Telefono</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="+39 333 1234567"
-                  value={api.phoneNumber || ""}
-                  onChange={(e) => setApi(prev => ({ ...prev, phoneNumber: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="form-label">API Key (Twilio)</label>
+                <label className="form-label">Vapi API Key</label>
                 <input
                   type="password"
                   className="form-input"
-                  placeholder="SKxxxxxxxxxxxxx"
+                  placeholder="vapi-xxxxxxxxxxxxx"
                   value={api.phoneApiKey || ""}
                   onChange={(e) => setApi(prev => ({ ...prev, phoneApiKey: e.target.value }))}
                 />
+                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+                  Trova la tua API key su{" "}
+                  <a href="https://dashboard.vapi.ai" target="_blank" rel="noopener noreferrer" style={{ color: "#667eea" }}>
+                    dashboard.vapi.ai
+                  </a>
+                </p>
+              </div>
+              <div>
+                <label className="form-label">Phone Number ID (Vapi)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  value={api.phoneApiSecret || ""}
+                  onChange={(e) => setApi(prev => ({ ...prev, phoneApiSecret: e.target.value }))}
+                />
+                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+                  ID del numero di telefono acquistato su Vapi
+                </p>
+              </div>
+              <div>
+                <label className="form-label">Assistant ID (opzionale)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Lascia vuoto per creare automaticamente"
+                  value={api.phoneNumber || ""}
+                  onChange={(e) => setApi(prev => ({ ...prev, phoneNumber: e.target.value }))}
+                />
+                <p style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 4 }}>
+                  Se hai già un assistente Vapi, inserisci l&apos;ID. Altrimenti verrà creato automaticamente.
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={async () => {
+                    if (!api.phoneApiKey) { alert("Inserisci prima la Vapi API Key"); return; }
+                    try {
+                      const res = await fetch("/api/vapi", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          action: "create_assistant",
+                          apiKey: api.phoneApiKey,
+                          config: {
+                            businessName: config.businessName || "La mia attività",
+                            businessType: config.businessType,
+                            aiPersonality: config.aiPersonality,
+                            services: config.services,
+                          },
+                        }),
+                      });
+                      const data = await res.json();
+                      if (data.success) {
+                        setApi(prev => ({ ...prev, phoneNumber: data.assistantId }));
+                        alert("Assistente creato! ID: " + data.assistantId);
+                      } else {
+                        alert("Errore: " + (data.error || "Errore sconosciuto"));
+                      }
+                    } catch (err) {
+                      alert("Errore di connessione: " + String(err));
+                    }
+                  }}
+                >
+                  🤖 Crea Assistente Vapi
+                </button>
               </div>
             </div>
           </div>
