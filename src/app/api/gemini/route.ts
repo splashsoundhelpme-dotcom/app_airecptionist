@@ -6,6 +6,10 @@ export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
+      console.error("[Gemini Route] GEMINI_API_KEY is undefined. Env check:", { 
+        hasKey: !!process.env.GEMINI_API_KEY,
+        allEnvKeys: Object.keys(process.env).filter(k => /GEMINI|VAPI|ELEVEN/.test(k)).join(", ")
+      });
       return NextResponse.json({ success: false, error: "GEMINI_API_KEY non configurata" }, { status: 500 });
     }
 
