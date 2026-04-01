@@ -16,76 +16,6 @@ interface Props {
   onRefresh: () => void;
 }
 
-// Simulated AI responses based on context
-function generateAiResponse(userMessage: string, config: BusinessConfig, reservations: Reservation[]): string {
-  const msg = userMessage.toLowerCase();
-  const pending = reservations.filter((r) => r.status === "in_attesa");
-  const today = new Date().toDateString();
-  const todayRes = reservations.filter((r) => new Date(r.dateTime).toDateString() === today);
-
-  if (msg.includes("prenotazion") && (msg.includes("oggi") || msg.includes("giorn"))) {
-    if (todayRes.length === 0) return "Non ci sono prenotazioni per oggi.";
-    return `Oggi hai ${todayRes.length} prenotazion${todayRes.length === 1 ? "e" : "i"}:\n${todayRes.map((r) => `• ${r.clientName} alle ${formatDateTime(r.dateTime).time} — ${r.service}`).join("\n")}`;
-  }
-
-  if (msg.includes("attesa") || msg.includes("conferma")) {
-    if (pending.length === 0) return "Non ci sono prenotazioni in attesa di conferma. Tutto in ordine! ✅";
-    return `Ci sono ${pending.length} prenotazion${pending.length === 1 ? "e" : "i"} in attesa:\n${pending.map((r) => `• ${r.clientName} — ${r.service} (${CHANNEL_LABELS[r.channel]?.label || r.channel})`).join("\n")}\n\nVuoi che le confermi automaticamente?`;
-  }
-
-  if (msg.includes("orari") || msg.includes("apertura")) {
-    const openDays = Object.entries(config.weekHours)
-      .filter(([, h]) => h.open)
-      .map(([day, h]) => `${day}: ${h.from}–${h.to}`);
-    return `Gli orari di apertura di ${config.businessName} sono:\n${openDays.join("\n")}`;
-  }
-
-  if (msg.includes("servizi") || msg.includes("trattament")) {
-    const services = config.services?.slice(0, 6) || [];
-    if (services.length === 0) return "Non ho trovato servizi configurati. Vai nelle impostazioni per aggiungerli.";
-    return `I servizi disponibili sono:\n${services.map((s) => `• ${s.name} — ${s.duration} min${s.price > 0 ? ` (€${s.price})` : ""}`).join("\n")}`;
-  }
-
-  if (msg.includes("statistic") || msg.includes("report") || msg.includes("riepilog")) {
-    const total = reservations.length;
-    const confirmed = reservations.filter((r) => r.status === "confermata").length;
-    const aiHandled = reservations.filter((r) => r.aiHandled).length;
-    return `📊 Riepilogo attività:\n• Totale prenotazioni: ${total}\n• Confermate: ${confirmed}\n• In attesa: ${pending.length}\n• Gestite dall'AI: ${aiHandled} (${Math.round((aiHandled / Math.max(total, 1)) * 100)}%)\n\nL'AI sta gestendo efficacemente le prenotazioni in entrata.`;
-  }
-
-  if (msg.includes("telefon") || msg.includes("chiama") || msg.includes("call")) {
-    return `Sono pronto a gestire le chiamate in entrata per ${config.businessName}. Quando un cliente chiama, rispondo automaticamente, raccolgo le informazioni necessarie e creo la prenotazione nel sistema. Puoi configurare il numero di telefono nelle impostazioni.`;
-  }
-
-  if (msg.includes("email")) {
-    return `Monitoro la casella email ${config.email || "(non configurata)"} per nuove richieste di prenotazione. Quando arriva un'email, la analizzo, estraggo le informazioni e creo automaticamente la prenotazione. Rispondo al cliente con una conferma.`;
-  }
-
-  if (msg.includes("sms") || msg.includes("messaggio")) {
-    return `Gestisco i messaggi SMS in entrata. Quando un cliente invia un SMS con una richiesta di prenotazione, rispondo automaticamente e creo la prenotazione nel sistema. Il cliente riceve una conferma via SMS.`;
-  }
-
-  if (msg.includes("whatsapp")) {
-    return `Posso gestire le prenotazioni via WhatsApp. I clienti possono inviare un messaggio al numero WhatsApp dell'attività e io rispondo automaticamente, gestendo l'intera prenotazione in modo conversazionale.`;
-  }
-
-  if (msg.includes("ciao") || msg.includes("salve") || msg.includes("buongiorno") || msg.includes("buonasera")) {
-    return `Ciao! Sono l'assistente AI di ${config.businessName}. Posso aiutarti a:\n• Gestire le prenotazioni in entrata (telefono, email, SMS, WhatsApp)\n• Rispondere alle domande dei clienti\n• Mostrarti statistiche e report\n• Confermare o cancellare prenotazioni\n\nCosa posso fare per te?`;
-  }
-
-  if (msg.includes("aiut") || msg.includes("cosa puoi") || msg.includes("funzion")) {
-    return `Ecco cosa posso fare per te:\n\n📞 **Telefono**: Rispondo alle chiamate e creo prenotazioni\n✉️ **Email**: Monitoro la casella e gestisco le richieste\n💬 **SMS**: Gestisco messaggi di testo\n📱 **WhatsApp**: Conversazioni automatizzate\n\n📊 **Report**: Statistiche e riepilogo attività\n📅 **Prenotazioni**: Visualizzo, confermo, cancello\n⏰ **Orari**: Informo i clienti sugli orari\n\nChiedimi qualsiasi cosa!`;
-  }
-
-  // Default response
-  const responses = [
-    `Ho capito la tua richiesta. Come assistente AI di ${config.businessName}, sono qui per aiutarti a gestire le prenotazioni e le comunicazioni con i clienti. Puoi chiedermi informazioni sulle prenotazioni, gli orari, i servizi o le statistiche.`,
-    `Sto elaborando la tua richiesta. Ricorda che gestisco automaticamente le prenotazioni in entrata da tutti i canali (telefono, email, SMS, WhatsApp) e ti notifico quando c&apos;è qualcosa che richiede la tua attenzione.`,
-    `Capito! Sono operativo e monitoro tutti i canali di comunicazione. Attualmente ho ${reservations.filter((r) => r.aiHandled).length} prenotazioni gestite automaticamente. Posso aiutarti con altro?`,
-  ];
-  return responses[Math.floor(Math.random() * responses.length)];
-}
-
 export default function AiAssistantView({ config, reservations, onRefresh }: Props) {
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [input, setInput] = useState("");
@@ -118,20 +48,62 @@ export default function AiAssistantView({ config, reservations, onRefresh }: Pro
     setInput("");
     setIsTyping(true);
 
-    // Simulate AI thinking
-    await new Promise((r) => setTimeout(r, 800 + Math.random() * 600));
+    try {
+      const todayRes = reservations.filter(
+        (r) => new Date(r.dateTime).toDateString() === new Date().toDateString()
+      );
+      const pending = reservations.filter((r) => r.status === "in_attesa");
+      const upcoming = reservations
+        .filter((r) => new Date(r.dateTime) > new Date() && r.status !== "cancellata")
+        .slice(0, 5);
 
-    const aiResponse = generateAiResponse(content, config, reservations);
-    const aiMsg: AiMessage = {
-      id: generateId(),
-      role: "assistant",
-      content: aiResponse,
-      timestamp: new Date().toISOString(),
-    };
+      const systemPrompt = `Sei l'assistente AI per "${config.businessName || "la nostra attività"}", un ${config.businessType}.
+Rispondi sempre in italiano, in modo cordiale e professionale.
 
-    const finalMessages = [...newMessages, aiMsg];
-    setMessages(finalMessages);
-    saveAiMessages(finalMessages);
+Informazioni attuali:
+- Prenotazioni oggi: ${todayRes.length}
+- Prenotazioni in attesa: ${pending.length}
+- Prossime prenotazioni: ${upcoming.map((r) => `${r.clientName} - ${new Date(r.dateTime).toLocaleDateString("it-IT")} ${new Date(r.dateTime).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })} - ${r.service}`).join("; ") || "Nessuna"}
+- Orari: ${Object.entries(config.weekHours).filter(([, h]) => h.open).map(([d, h]) => `${d}: ${h.from}-${h.to}`).join(", ")}
+- Servizi: ${config.services?.map((s) => `${s.name} (${s.duration}min, €${s.price})`).join(", ") || "Nessuno"}
+- Staff: ${config.staff?.map((s) => s.name).join(", ") || "Nessuno"}
+
+Puoi aiutare con: analisi prenotazioni, suggerimenti, statistiche, orari, servizi.`;
+
+      const chatMessages = newMessages.slice(-10).map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const res = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: chatMessages, systemPrompt }),
+      });
+
+      const data = await res.json();
+      const aiResponse = data.success ? data.response : `Errore: ${data.error || "Impossibile contattare l'AI"}`;
+
+      const aiMsg: AiMessage = {
+        id: generateId(),
+        role: "assistant",
+        content: aiResponse,
+        timestamp: new Date().toISOString(),
+      };
+
+      const finalMessages = [...newMessages, aiMsg];
+      setMessages(finalMessages);
+      saveAiMessages(finalMessages);
+    } catch {
+      const errorMsg: AiMessage = {
+        id: generateId(),
+        role: "assistant",
+        content: "Errore di connessione. Riprova più tardi.",
+        timestamp: new Date().toISOString(),
+      };
+      setMessages([...newMessages, errorMsg]);
+    }
+
     setIsTyping(false);
   };
 
