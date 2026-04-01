@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
           maxTokens: 300,
         },
         voice: {
-          provider: "elevenlabs",
+          provider: "11labs",
           voiceId: "pNInz6obpgDQGcFmaJgB",
           stability: 0.5,
           similarityBoost: 0.75,
