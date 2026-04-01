@@ -822,8 +822,8 @@ export const SUBSCRIPTION_PLANS: Record<string, { name: string; price: number; i
     features: [
       "Accesso completo a tutte le funzionalità",
       "Assistente AI attivo",
+      "Numero di telefono incluso",
       "Gestione prenotazioni illimitata",
-      "Supporto prioritario",
     ],
   },
   monthly: {
@@ -834,6 +834,7 @@ export const SUBSCRIPTION_PLANS: Record<string, { name: string; price: number; i
     savings: 100,
     features: [
       "Tutto incluso nel piano trial",
+      "Telefono AI dedicato incluso",
       "Integrazioni telefoniche e email",
       "Notifiche in tempo reale",
       "Assistenza 24/7",
@@ -848,8 +849,8 @@ export const SUBSCRIPTION_PLANS: Record<string, { name: string; price: number; i
     features: [
       "Tutto nel piano mensile",
       "Risparmia €400 rispetto al mensile",
-      "Dominio personalizzato",
-      "API dedicata",
+      "Telefono AI dedicato incluso",
+      "Priorità supporto",
     ],
   },
 };

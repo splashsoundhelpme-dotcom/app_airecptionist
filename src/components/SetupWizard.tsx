@@ -43,6 +43,7 @@ const BUSINESS_OPTIONS: { type: BusinessType; icon: string; label: string; desc:
 
 export default function SetupWizard({ onComplete }: Props) {
   const [step, setStep] = useState<Step>(1);
+  const [provisioning, setProvisioning] = useState(false);
   const [config, setConfig] = useState<BusinessConfig>({
     ...DEFAULT_CONFIG,
     weekHours: { ...DEFAULT_WEEK_HOURS },
@@ -52,13 +53,53 @@ export default function SetupWizard({ onComplete }: Props) {
     setConfig((prev) => ({ ...prev, ...updates }));
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
+    setProvisioning(true);
     const finalConfig: BusinessConfig = {
       ...config,
       services: DEFAULT_SERVICES[config.businessType],
       setupComplete: true,
     };
+
+    try {
+      const res = await fetch("/api/vapi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "provision",
+          config: {
+            businessName: finalConfig.businessName,
+            businessType: finalConfig.businessType,
+            aiPersonality: finalConfig.aiPersonality,
+            services: finalConfig.services,
+            weekHours: finalConfig.weekHours,
+            turni: finalConfig.turni,
+            phone: finalConfig.phone,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        finalConfig.apiIntegration = {
+          ownerApiKeysConfigured: true,
+          phoneEnabled: true,
+          emailEnabled: false,
+          whatsappEnabled: false,
+          voiceEnabled: true,
+          phoneNumber: data.assistantId,
+          phoneApiSecret: data.phoneNumber?.id,
+          notifyOnNewReservation: true,
+          notifyOnCancellation: true,
+          notifyOnModification: true,
+          aiModel: "gemini" as const,
+        };
+      }
+    } catch (err) {
+      console.error("Vapi provisioning error:", err);
+    }
+
     saveConfig(finalConfig);
+    setProvisioning(false);
     onComplete();
   };
 
