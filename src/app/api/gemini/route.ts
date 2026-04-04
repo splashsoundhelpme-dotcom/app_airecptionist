@@ -1,16 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
+import { readSheet, isSheetsConfigured } from "@/lib/googleSheets";
 
 const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
+async function getStoredApiKey(headers: Headers): Promise<string | null> {
+  if (isSheetsConfigured(headers)) {
+    try {
+      const data = await readSheet("Configurazione!A:B", headers);
+      const row = data.find((r) => r[0] === "geminiApiKey");
+      if (row && row[1]) {
+        return row[1];
+      }
+    } catch (e) {
+      console.error("[Gemini Route] Failed to read API key from storage:", e);
+    }
+  }
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    // Support API key from header, body, environment, or storage
+    let apiKey = process.env.GEMINI_API_KEY;
+    
+    // Check header first (client-provided)
+    const headerKey = req.headers.get("x-gemini-api-key");
+    if (headerKey) {
+      apiKey = headerKey;
+    }
+    
+    // Check body
+    if (!apiKey) {
+      const body = await req.json();
+      if (body.apiKey) {
+        apiKey = body.apiKey;
+      }
+    }
+    
+    // Check Google Sheets storage
+    if (!apiKey) {
+      apiKey = await getStoredApiKey(req.headers) ?? undefined;
+    }
+    
     if (!apiKey) {
       console.error("[Gemini Route] GEMINI_API_KEY is undefined. Env check:", { 
         hasKey: !!process.env.GEMINI_API_KEY,
         allEnvKeys: Object.keys(process.env).filter(k => /GEMINI|VAPI|ELEVEN/.test(k)).join(", ")
       });
-      return NextResponse.json({ success: false, error: "GEMINI_API_KEY non configurata" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "GEMINI_API_KEY non configurata. Inserisci la chiave API nelle impostazioni." }, { status: 500 });
     }
 
     const body = await req.json();

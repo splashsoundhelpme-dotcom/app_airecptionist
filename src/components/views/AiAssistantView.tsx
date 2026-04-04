@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { BusinessConfig, Reservation, AiMessage } from "@/lib/types";
 import {
   getAiMessages,
@@ -21,12 +21,94 @@ export default function AiAssistantView({ config, reservations, onRefresh }: Pro
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [activeTab, setActiveTab] = useState<"chat" | "activity" | "settings">("chat");
+  const [geminiKey, setGeminiKey] = useState("");
+  const [keyStatus, setKeyStatus] = useState<"loading" | "configured" | "missing">("loading");
+  const [savingKey, setSavingKey] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const init = () => { setMessages(getAiMessages()); };
-    init();
+  const checkApiKey = useCallback(async () => {
+    try {
+      const hasLocalStorage = typeof window !== "undefined" && !!(
+        localStorage.getItem("gsheet_id") &&
+        localStorage.getItem("gsheet_email") && 
+        localStorage.getItem("gsheet_key")
+      );
+      
+      if (hasLocalStorage) {
+        const storedKey = localStorage.getItem("gsheet_key") || "";
+        let encodedKey = "";
+        try {
+          const cleanKey = storedKey.trim().replace(/\r\n/g, "\n");
+          encodedKey = btoa(cleanKey);
+        } catch (e) {}
+        
+        const headers: Record<string, string> = {
+          "x-gsheet-configured": "true",
+          "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
+          "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
+          "x-gsheet-key": encodedKey,
+        };
+        
+        const res = await fetch("/api/config/gemini-key", { headers });
+        const data = await res.json();
+        setKeyStatus(data.configured ? "configured" : "missing");
+        return;
+      }
+    } catch (e) {
+      console.error("Failed to check API key:", e);
+    }
+    setKeyStatus("missing");
   }, []);
+
+  useEffect(() => {
+    const init = async () => {
+      setMessages(getAiMessages());
+      await checkApiKey();
+    };
+    init();
+  }, [checkApiKey]);
+
+  const saveGeminiKey = async () => {
+    if (!geminiKey || geminiKey.length < 20) return;
+    setSavingKey(true);
+    
+    try {
+      const hasLocalStorage = typeof window !== "undefined" && !!(
+        localStorage.getItem("gsheet_id") &&
+        localStorage.getItem("gsheet_email") && 
+        localStorage.getItem("gsheet_key")
+      );
+      
+      if (hasLocalStorage) {
+        const storedKey = localStorage.getItem("gsheet_key") || "";
+        let encodedKey = "";
+        try {
+          const cleanKey = storedKey.trim().replace(/\r\n/g, "\n");
+          encodedKey = btoa(cleanKey);
+        } catch (e) {}
+        
+        const headers: Record<string, string> = {
+          "x-gsheet-configured": "true",
+          "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
+          "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
+          "x-gsheet-key": encodedKey,
+        };
+        
+        await fetch("/api/config/gemini-key", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify({ apiKey: geminiKey }),
+        });
+      }
+      
+      localStorage.setItem("gemini_api_key", geminiKey);
+      setKeyStatus("configured");
+    } catch (e) {
+      console.error("Failed to save API key:", e);
+    }
+    
+    setSavingKey(false);
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -75,11 +157,21 @@ Puoi aiutare con: analisi prenotazioni, suggerimenti, statistiche, orari, serviz
         content: m.content,
       }));
 
-      const res = await fetch("/api/gemini", {
+      const apiKey = localStorage.getItem("gemini_api_key");
+      const fetchOptions: RequestInit = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: chatMessages, systemPrompt }),
-      });
+      };
+      
+      if (apiKey) {
+        fetchOptions.headers = { 
+          ...fetchOptions.headers, 
+          "x-gemini-api-key": apiKey 
+        };
+      }
+
+      const res = await fetch("/api/gemini", fetchOptions);
 
       const data = await res.json();
       const aiResponse = data.success ? data.response : `Errore: ${data.error || "Impossibile contattare l'AI"}`;
@@ -580,6 +672,77 @@ Puoi aiutare con: analisi prenotazioni, suggerimenti, statistiche, orari, serviz
                 <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>
                   Modifica nelle impostazioni generali
                 </p>
+              </div>
+
+              {/* Gemini API Key */}
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>
+                  🔑 Chiave API Gemini
+                </p>
+                <div
+                  style={{
+                    padding: "16px 20px",
+                    borderRadius: 10,
+                    background: keyStatus === "configured" ? "rgba(34,197,94,0.08)" : "var(--surface-2)",
+                    border: `1px solid ${keyStatus === "configured" ? "rgba(34,197,94,0.3)" : "var(--border)"}`,
+                  }}
+                >
+                  {keyStatus === "loading" ? (
+                    <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Caricamento...</p>
+                  ) : keyStatus === "configured" ? (
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ color: "#22c55e" }}>✓</span>
+                        <span style={{ fontSize: 13, color: "var(--text)" }}>Chiave API configurata</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          localStorage.removeItem("gemini_api_key");
+                          setKeyStatus("missing");
+                        }}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 6,
+                          border: "1px solid var(--border)",
+                          background: "var(--surface)",
+                          fontSize: 12,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Rimuovi
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                        Inserisci la tua chiave API di Google AI per attivare l&apos;assistente.
+                      </p>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <input
+                          className="form-input"
+                          type="password"
+                          placeholder="Inserisci chiave API (es. AIza...)"
+                          value={geminiKey}
+                          onChange={(e) => setGeminiKey(e.target.value)}
+                          style={{ flex: 1 }}
+                        />
+                        <button
+                          className="btn btn-primary"
+                          onClick={saveGeminiKey}
+                          disabled={!geminiKey || geminiKey.length < 20 || savingKey}
+                        >
+                          {savingKey ? "Salvo..." : "Salva"}
+                        </button>
+                      </div>
+                      <p style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                        Ottieni una chiave gratuita su{" "}
+                        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" style={{ color: "var(--primary)" }}>
+                          Google AI Studio
+                        </a>
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Fiduciary contract */}
