@@ -42,31 +42,52 @@ async function saveReservationFromCall(
 
 function extractReservationFromTranscript(transcript: string[]): { clientName?: string; phone?: string; service?: string; date?: string; time?: string; notes?: string } | null {
   const fullText = transcript.join(" ").toLowerCase();
+  const result: Record<string, string> = {};
   
-  const phoneMatch = fullText.match(/(\+?39\s?3\d{2}[.\s]?\d{6,8})/);
-  const dateMatch = fullText.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
-  const timeMatch = fullText.match(/ore?(\d{1,2})[:.](\d{2})/);
+  // Extract number of people - look for "10 persone" 
+  const peopleMatch = fullText.match(/(\d+)[^0-9]*persone/i);
+  if (peopleMatch) {
+    result.service = peopleMatch[1] + " persone";
+  }
   
-  let clientName = "Cliente telefonico";
-  const nameMatches = transcript.filter(t => t.toLowerCase().includes("mi chiamo") || t.toLowerCase().includes("sono"));
-  if (nameMatches.length > 0) {
-    const namePart = nameMatches[0].replace(/mi chiamo|sono/i, "").trim();
-    if (namePart.length > 2 && namePart.length < 50) {
-      clientName = namePart.replace(/[^\w\s]/g, "").trim();
+  // Extract date - Italian format like "5 aprile 2026"
+  const itDateMatch = fullText.match(/(\d{1,2})[^0-9a-z]+(aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre|gen|feb|mar)[^0-9a-z]+(\d{4})/i);
+  if (itDateMatch) {
+    const months: Record<string, string> = {
+      aprile: "04", maggio: "05", giugno: "06", luglio: "07", agosto: "08", 
+      settembre: "09", ottobre: "10", novembre: "11",dicembre: "12", 
+      gennaio: "01", feb: "02", mar: "03"
+    };
+    const month = months[itDateMatch[2].toLowerCase()] || "04";
+    result.date = `${itDateMatch[3]}-${month}-${itDateMatch[1].padStart(2, "0")}`;
+  } else if (fullText.includes("domani")) {
+    const t = new Date();
+    t.setDate(t.getDate() + 1);
+    result.date = t.toISOString().split("T")[0];
+  }
+  
+  // Extract time 
+  const timeMatch = fullText.match(/(\d{1,2})[.:](\d{2})/);
+  if (timeMatch) {
+    result.time = timeMatch[1].padStart(2, "0") + ":" + timeMatch[2];
+  }
+  
+  // Simple extract name: look for capitalized words from user messages
+  for (const t of transcript) {
+    const u = t.toLowerCase();
+    if (u.includes("user")) {
+      const nameMatch = t.match(/([A-Z][a-z]+)/);
+      if (nameMatch && nameMatch[1].length > 2) {
+        result.clientName = nameMatch[1];
+        break;
+      }
     }
   }
-
-  if (!phoneMatch && !dateMatch) {
-    return null;
+  
+  if (result.service || result.date || result.clientName) {
+    return result;
   }
-
-  return {
-    clientName,
-    phone: phoneMatch ? phoneMatch[1].replace(/\s/g, "") : undefined,
-    date: dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : undefined,
-    time: timeMatch ? `${timeMatch[2]}:${timeMatch[3]}` : undefined,
-    notes: `Transcrizione: ${transcript.join(" | ")}`,
-  };
+  return null;
 }
 
 export async function POST(req: NextRequest) {
@@ -152,29 +173,8 @@ export async function POST(req: NextRequest) {
 
       case "end-of-call-report":
       case "call.ended": {
-        const transcript = message.transcript || [];
-        const fullText = transcript.map((t: { role: string; content: string }) => `${t.role}: ${t.content}`).join("\n");
-        console.log("[Vapi Webhook] Call ended. Transcript:", fullText);
-        
-        const transcriptContents = transcript.map((t: { content: string }) => t.content);
-        const reservationData = extractReservationFromTranscript(transcriptContents);
-        
-        if (reservationData) {
-          console.log("[Vapi Webhook] Saving reservation from transcript:", reservationData);
-          
-          try {
-            await fetch(req.url.replace("/api/vapi/webhook", "/api/webhooks/reservations"), {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                ...reservationData,
-                source: "vapi-call",
-              }),
-            });
-          } catch (fetchError) {
-            console.error("[Vapi Webhook] Failed to save reservation:", fetchError);
-          }
-        }
+        // Log it - but main saving happens via tool calls, not transcript
+        console.log("[Vapi Webhook] Call ended event received");
         break;
       }
 
