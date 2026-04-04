@@ -138,6 +138,96 @@ export default function AdminApp({ onLogout, onGoToSetup, onGoToPricing }: Props
     setReservations(getReservations());
   };
 
+  // Poll for reservations from webhooks (Vapi calls)
+  useEffect(() => {
+    let lastFetch = new Date().toISOString();
+    
+    const pollWebhooks = async () => {
+      try {
+        const res = await fetch(`/api/webhooks/reservations?since=${encodeURIComponent(lastFetch)}`);
+        const data = await res.json();
+        
+        if (data.reservations && data.reservations.length > 0) {
+          console.log("[AdminApp] New reservations from webhooks:", data.reservations);
+          lastFetch = new Date().toISOString();
+          
+          const newReservations = data.reservations.map((r: any) => ({
+            id: r.id,
+            clientName: r.clientName,
+            clientPhone: r.phone,
+            clientEmail: "",
+            service: r.service,
+            dateTime: `${r.date}T${r.time}:00`,
+            status: r.status as any,
+            channel: r.channel as any,
+            notes: r.notes,
+            createdAt: r.createdAt,
+            aiHandled: true,
+            aiTranscript: r.notes,
+          }));
+          
+          setReservations(prev => [...newReservations, ...prev]);
+          
+          // Also try to save to Google Sheets if configured
+          const hasLocalStorage = typeof window !== "undefined" && !!(
+            localStorage.getItem("gsheet_id") &&
+            localStorage.getItem("gsheet_email") && 
+            localStorage.getItem("gsheet_key")
+          );
+          
+          if (hasLocalStorage) {
+            const storedKey = localStorage.getItem("gsheet_key") || "";
+            let encodedKey = "";
+            try {
+              const cleanKey = storedKey.trim().replace(/\r\n/g, "\n");
+              encodedKey = btoa(cleanKey);
+            } catch (e) {}
+            
+            const headers: Record<string, string> = {
+              "x-gsheet-configured": "true",
+              "x-gsheet-id": localStorage.getItem("gsheet_id") || "",
+              "x-gsheet-email": localStorage.getItem("gsheet_email") || "",
+              "x-gsheet-key": encodedKey,
+            };
+            
+            for (const res of newReservations) {
+              try {
+                await fetch("/api/sheets/reservations", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", ...headers },
+                  body: JSON.stringify({
+                    id: res.id,
+                    cliente: res.clientName,
+                    telefono: res.clientPhone,
+                    email: "",
+                    servizio: res.service,
+                    data: res.dateTime.split("T")[0],
+                    ora: res.dateTime.split("T")[1]?.slice(0, 5) || "00:00",
+                    staff: "",
+                    stato: res.status,
+                    canale: res.channel,
+                    note: res.notes,
+                    creato: res.createdAt,
+                  }),
+                });
+              } catch (e) {
+                console.error("Failed to save reservation to sheets:", e);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Silent fail - webhooks are optional
+      }
+    };
+    
+    // Poll every 10 seconds
+    const interval = setInterval(pollWebhooks, 10000);
+    pollWebhooks(); // Initial poll
+    
+    return () => clearInterval(interval);
+  }, []);
+
   const refreshConfig = () => {
     setConfig(getConfig());
   };

@@ -129,9 +129,21 @@ export async function POST(req: NextRequest) {
         const transcriptContents = transcript.map((t: { content: string }) => t.content);
         const reservationData = extractReservationFromTranscript(transcriptContents);
         
-        if (reservationData && isSheetsConfigured(req.headers)) {
+        if (reservationData) {
           console.log("[Vapi Webhook] Saving reservation from transcript:", reservationData);
-          await saveReservationFromCall(reservationData, req.headers);
+          
+          try {
+            await fetch(req.url.replace("/api/vapi/webhook", "/api/webhooks/reservations"), {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                ...reservationData,
+                source: "vapi-call",
+              }),
+            });
+          } catch (fetchError) {
+            console.error("[Vapi Webhook] Failed to save reservation:", fetchError);
+          }
         }
         break;
       }
