@@ -94,30 +94,60 @@ export async function POST(req: NextRequest) {
         });
       }
 
+      case "tool-calls":
       case "function-call": {
-        const { functionCall } = message;
-        if (functionCall?.name === "create_reservation") {
-          const args = typeof functionCall.arguments === "string"
-            ? JSON.parse(functionCall.arguments)
-            : functionCall.arguments;
+        // Handle tool calls from VAPI
+        const toolCalls = message.toolCalls || (message.functionCall ? [message] : []);
+        
+        for (const toolCall of toolCalls) {
+          const functionName = toolCall.function?.name || toolCall.name;
+          const args = typeof toolCall.function?.arguments === "string"
+            ? JSON.parse(toolCall.function.arguments)
+            : toolCall.function?.arguments || toolCall.arguments;
           
-          const headers = req.headers;
-          if (isSheetsConfigured(headers)) {
-            await saveReservationFromCall({
-              clientName: args.clientName,
-              phone: args.phone,
-              service: args.service,
-              date: args.date,
-              time: args.time,
-              notes: args.notes,
-            }, headers);
+          if (functionName === "create_reservation") {
+            console.log("[Vapi Webhook] Create reservation called with:", args);
+            
+            let resultMessage = `Prenotazione confermata per ${args.clientName} il ${args.date} alle ${args.time}. Grazie!`;
+            
+            // Save to webhook reservations endpoint
+            try {
+              const baseUrl = req.url.split("/api/vapi/webhook")[0];
+              const webhookUrl = `${baseUrl}/api/webhooks/reservations`;
+              console.log("[Vapi Webhook] Saving to:", webhookUrl);
+              
+              const saveRes = await fetch(webhookUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  clientName: args.clientName,
+                  phone: args.phone || "+393755127158",
+                  service: args.service || "10 persone",
+                  date: args.date || new Date().toISOString().split("T")[0],
+                  time: args.time || "21:30",
+                  channel: "telefono",
+                  notes: `Prenotazione da chiamata AI`,
+                  source: "vapi-tool",
+                }),
+              });
+              
+              const saveData = await saveRes.json();
+              console.log("[Vapi Webhook] Save response:", saveData);
+              console.log("[Vapi Webhook] Reservation saved successfully");
+            } catch (e) {
+              console.error("[Vapi Webhook] Error saving tool call reservation:", e);
+              resultMessage = "Errore nel salvataggio. Riprova.";
+            }
+            
+            return NextResponse.json({
+              results: [{
+                toolCallId: toolCall.id || "call_" + Date.now(),
+                result: resultMessage,
+              }],
+            });
           }
-          
-          return NextResponse.json({
-            result: `Prenotazione confermata per ${args.clientName} il ${args.date} alle ${args.time}. Grazie!`,
-          });
         }
-        return NextResponse.json({ result: "Funzione non riconosciuta" });
+        return NextResponse.json({ result: "Tool not recognized" });
       }
 
       case "end-of-call-report":
