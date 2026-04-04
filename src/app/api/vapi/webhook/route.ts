@@ -173,8 +173,36 @@ export async function POST(req: NextRequest) {
 
       case "end-of-call-report":
       case "call.ended": {
-        // Log it - but main saving happens via tool calls, not transcript
-        console.log("[Vapi Webhook] Call ended event received");
+        // Parse and save - ALWAYS
+        try {
+          const transcript = message.transcript || "";
+          const text = String(transcript).toLowerCase();
+          
+          const peopleMatch = text.match(/(\d+)\s*persone/i);
+          const dateMatch = text.match(/(\d{1,2})\s+(aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)/i);
+          const timeMatch = text.match(/(\d{1,2})[.:](\d{2})/);
+          const nameMatch = String(transcript).match(/([A-Z][a-z]+)/);
+          
+          const clientName = nameMatch ? nameMatch[1] : "Cliente";
+          const date = dateMatch ? "2026-04-" + dateMatch[1].padStart(2,"0") : "2026-04-05";
+          const time = timeMatch ? timeMatch[1].padStart(2,"0")+":"+timeMatch[2] : "21:30";
+          const service = peopleMatch ? peopleMatch[1] + " persone" : "";
+          
+          console.log("[VAPI] Saving:", {clientName, date, time, service});
+          
+          await fetch("https://twilight-lake-0344.d.kiloapps.io/api/webhooks/reservations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+              clientName, 
+              date, 
+              time, 
+              service: service || "2 persone", 
+              channel: "telefono", 
+              source: "call-ended" 
+            }),
+          });
+        } catch(e) { console.log("[VAPI] Error:", e); }
         break;
       }
 

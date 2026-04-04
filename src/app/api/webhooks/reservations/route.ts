@@ -54,16 +54,16 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const since = searchParams.get("since");
 
+  // Filter but DON'T delete - keep them in case poll happens before GET
   if (since) {
-    pendingReservations = pendingReservations.filter(
+    const filtered = pendingReservations.filter(
       (r) => new Date(r.createdAt).getTime() > new Date(since).getTime()
     );
+    return NextResponse.json({ reservations: filtered });
   }
 
-  const result = [...pendingReservations];
-  pendingReservations = [];
-
-  return NextResponse.json({ reservations: result });
+  // Return all if no 'since' param
+  return NextResponse.json({ reservations: [...pendingReservations] });
 }
 
 // DELETE /api/webhooks/reservations - Clear all pending reservations
